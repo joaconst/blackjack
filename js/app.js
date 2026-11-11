@@ -28,6 +28,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const LEGACY_KEY = 'blackjack.state.v1';
+const APP_VERSION = 'v6';
 const money = formatMoney;
 let resetting = false;
 
@@ -73,6 +74,7 @@ const els = {
   sheetInstallBtn: document.getElementById('sheetInstallBtn'),
   installStatus: document.getElementById('installStatus'),
   installSteps: document.getElementById('installSteps'),
+  appVersion: document.getElementById('appVersion'),
   resetBtn: document.getElementById('resetBtn'),
   resetConfirm: document.getElementById('resetConfirm'),
   resetCancel: document.getElementById('resetCancel'),
@@ -1357,11 +1359,14 @@ function confirmAddFunds() {
 const GESTURE_EDGE = 28;
 const SWIPE_MIN = 64;
 const SWIPE_LEFT_MIN = 80;
-const SWIPE_ALLIN_MIN = 110;
+const SWIPE_ALLIN_MIN = 90;
+const SWIPE_ALLIN_HINT = 45;
 const DRAG_MAX = 150;
 const SWIPE_MAX_MS = 900;
-const DOUBLE_TAP_MS = 320;
-const DOUBLE_TAP_DIST = 32;
+const DRAG_MAX_MS = 2500;
+const TAP_MAX_MS = 500;
+const DOUBLE_TAP_MS = 450;
+const DOUBLE_TAP_DIST = 40;
 
 let gesture = null;
 let lastTap = { t: 0, x: 0, y: 0 };
@@ -1397,7 +1402,7 @@ function swipeDirection(start, dx, dy) {
   const ady = Math.abs(dy);
 
   if (start.mode === 'bet') {
-    if (start.onSpot && dx <= -SWIPE_ALLIN_MIN && adx > ady * 1.15) return 'left';
+    if (dx <= -SWIPE_ALLIN_MIN && adx > ady * 1.15) return 'left';
     if (start.canClear && dy >= 52 && ady > adx * 1.15) return 'down';
     return '';
   }
@@ -1430,22 +1435,17 @@ function setBetDrag(dx) {
   els.betSpot.classList.toggle('is-dragging', Boolean(dx));
 }
 
-function handleSpotTap(event) {
-  const now = performance.now();
-  const near =
-    Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < DOUBLE_TAP_DIST;
-
-  if (now - lastTap.t < DOUBLE_TAP_MS && near) {
-    lastTap = { t: 0, x: 0, y: 0 };
-    quickDeal();
-    return;
-  }
-  lastTap = { t: now, x: event.clientX, y: event.clientY };
-}
-
 function onTablePointerDown(event) {
-  if (!gesturesAvailable() || gesture) return;
+  if (!gesturesAvailable()) return;
   if (event.pointerType === 'mouse' && event.button !== 0) return;
+  if (event.isPrimary === false) return;
+
+  // Si un gesto anterior quedo colgado (pointerup perdido), no frena la mesa.
+  if (gesture) {
+    gesture = null;
+    setBetDrag(0);
+    hideGestureHint();
+  }
 
   const x = event.clientX;
   const y = event.clientY;
@@ -1463,14 +1463,20 @@ function onTablePointerDown(event) {
     state.hands.some((hand) => hand.cards.length > 0) ||
     state.dealer.length > 0;
 
+  const now = performance.now();
+  const near = Math.hypot(x - lastTap.x, y - lastTap.y) < DOUBLE_TAP_DIST;
+  // El doble toque se mide entre toques, sin contar lo que dura cada uno.
+  const doubleTap = betting && lastTap.t > 0 && now - lastTap.t < DOUBLE_TAP_MS && near;
+
   gesture = {
     id: event.pointerId,
     x0: x,
     y0: y,
-    t0: performance.now(),
+    t0: now,
     mode: betting ? 'bet' : 'play',
     onSpot,
     canClear,
+    doubleTap,
     direction: '',
   };
 
@@ -1486,18 +1492,25 @@ function onTablePointerMove(event) {
 
   const dx = event.clientX - gesture.x0;
   const dy = event.clientY - gesture.y0;
-  if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+  const adx = Math.abs(dx);
+  const ady = Math.abs(dy);
+  if (adx < 8 && ady < 8) return;
 
   if (gesture.mode === 'bet' && gesture.onSpot) {
-    const dragging = dx < 0 && Math.abs(dx) > Math.abs(dy);
+    const dragging = dx < 0 && adx > ady;
     setBetDrag(dragging ? Math.max(-DRAG_MAX, dx) : 0);
   }
 
   const direction = swipeDirection(gesture, dx, dy);
-  if (direction === gesture.direction) return;
-  gesture.direction = direction;
+  // El aviso de All in aparece antes del umbral para que se vea que va.
+  const hint =
+    !direction && gesture.mode === 'bet' && dx <= -SWIPE_ALLIN_HINT && adx > ady * 1.15
+      ? 'left'
+      : direction;
+  if (hint === gesture.direction) return;
+  gesture.direction = hint;
 
-  if (direction) showGestureHint(gestureHintText(gesture, direction));
+  if (hint) showGestureHint(gestureHintText(gesture, hint));
   else hideGestureHint();
 }
 
@@ -1520,16 +1533,35 @@ function onTablePointerUp(event) {
   const ady = Math.abs(dy);
   const elapsed = performance.now() - start.t0;
 
-  if (adx < 12 && ady < 12) {
-    if (start.mode === 'bet' && start.onSpot && elapsed < DOUBLE_TAP_MS) {
-      handleSpotTap(event);
+  if (start.mode === 'bet') {
+    if (adx < 12 && ady < 12) {
+      if (elapsed <= TAP_MAX_MS) {
+        if (start.doubleTap) {
+          lastTap = { t: 0, x: 0, y: 0 };
+          quickDeal();
+        } else {
+          lastTap = { t: performance.now(), x: start.x0, y: start.y0 };
+        }
+      } else {
+        lastTap = { t: 0, x: 0, y: 0 };
+      }
+      return;
+    }
+
+    // Un arrastre no cuenta como toque.
+    lastTap = { t: 0, x: 0, y: 0 };
+    if (elapsed > DRAG_MAX_MS) return;
+  } else if (elapsed > SWIPE_MAX_MS) {
+    return;
+  }
+
+  const direction = swipeDirection(start, dx, dy);
+  if (!direction) {
+    if (start.mode === 'bet' && dx <= -SWIPE_ALLIN_HINT && adx > ady * 1.15) {
+      toast('Arrastrá un poco más a la izquierda para All in');
     }
     return;
   }
-  if (elapsed > SWIPE_MAX_MS) return;
-
-  const direction = swipeDirection(start, dx, dy);
-  if (!direction) return;
 
   if (start.mode === 'bet') {
     if (direction === 'left') allBet();
@@ -1557,6 +1589,7 @@ function onTablePointerUp(event) {
 function onTablePointerCancel(event) {
   if (!gesture || event.pointerId !== gesture.id) return;
   gesture = null;
+  lastTap = { t: 0, x: 0, y: 0 };
   hideGestureHint();
   setBetDrag(0);
 }
@@ -1698,6 +1731,7 @@ applyInitialState();
 function applyInitialState() {
   if (state.bet > state.balance) state.bet = state.balance;
   if (state.bet < MIN_BET) state.bet = 0;
+  if (els.appVersion) els.appVersion.textContent = `versión ${APP_VERSION}`;
   maybeTopUp();
   if (state.balance < MIN_BET) setStatus('', 'neutral');
   else setBetMessage();
@@ -1712,7 +1746,7 @@ function scheduleGestureHint() {
   if (!state.gestures || state.seenGestureHint || state.balance < MIN_BET) return;
   setTimeout(() => {
     if (!state.gestures) return;
-    toast('Deslizá sobre la mesa: ↓ limpiar · pila ← all in · doble toque reparte');
+    toast('Doble toque reparte · ← all in · ↓ limpiar');
     state.seenGestureHint = true;
     savePrefs();
   }, 1400);
@@ -1725,7 +1759,21 @@ if ('serviceWorker' in navigator) {
     location.hostname === '127.0.0.1';
   if (secure) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      navigator.serviceWorker
+        .register('./sw.js', { updateViaCache: 'none' })
+        .then((registration) => {
+          let lastCheck = 0;
+          const checkUpdate = () => {
+            if (document.hidden) return;
+            const now = Date.now();
+            if (now - lastCheck < 5 * 60 * 1000) return;
+            lastCheck = now;
+            registration.update().catch(() => {});
+          };
+          document.addEventListener('visibilitychange', checkUpdate);
+          window.addEventListener('focus', checkUpdate);
+        })
+        .catch(() => {});
     });
   }
 }

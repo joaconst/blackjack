@@ -651,6 +651,17 @@ button {
   user-select: none;
 }
 
+.app-version {
+  margin: 0;
+  padding: 8px 0 1px;
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .panel {
   display: flex;
   flex-direction: column;
@@ -1365,6 +1376,11 @@ button {
   .app {
     gap: 6px;
     padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .app-version {
+    padding-top: 4px;
+    font-size: 9px;
   }
 
   .table {

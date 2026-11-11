@@ -29,15 +29,17 @@ Se puede instalar como app en el celular (PWA) y funciona offline.
 Los gestos son un atajo opcional; los botones siguen siendo la vía principal y
 accesible. Se pueden apagar en **Ajustes → Gestos** y la elección queda guardada.
 
-- **Apuesta:** doble toque sobre la pila reparte (si no hay apuesta, restaura la
-  última); arrastrar la pila hacia la **izquierda** hace **All in**; deslizar hacia
-  **abajo** limpia la apuesta y la mesa desde **cualquier parte de la mesa**.
+- **Apuesta:** doble toque en la mesa reparte (si no hay apuesta, restaura la
+  última); deslizar hacia la **izquierda** hace **All in** y, si arrancás sobre la
+  pila, la pila sigue al dedo; deslizar hacia **abajo** limpia la apuesta y la
+  mesa desde **cualquier parte de la mesa**.
 - **Jugando:** deslizar hacia **abajo** pide carta, hacia **arriba** se planta,
   hacia la **izquierda** dobla y hacia la **derecha** divide.
 - El gesto tiene que empezar lejos del borde de la pantalla (unos 28 px) para no
-  chocar con el gesto de atrás del teléfono. El umbral es de 64 px (52 px para
-  limpiar, 80 px para doblar y 110 px para All in) y hay que hacerlo en menos de
-  0,9 s.
+  chocar con el gesto de atrás del teléfono. Para All in el umbral es de 90 px (el
+  aviso aparece a los 45 px) y no hay límite de tiempo: podés arrastrar tranquilo.
+  Limpiar son 52 px y los gestos de juego 64 px (80 px para doblar) en menos de
+  0,9 s. El doble toque acepta hasta 450 ms entre toques y toques de hasta 500 ms.
 - Mientras deslizás aparece el nombre de la acción sobre la mesa. Al soltar se
   ejecuta una sola vez.
 
@@ -99,6 +101,10 @@ configurar nada más.
 
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
+
+Abajo de todo, la app muestra la versión instalada (`versión v6`). Si ves una
+versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que el
+service worker tome la actualización.
 
 ## Tests
 
@@ -174,7 +180,8 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (`blackjack-v5` → `blackjack-v6`) para que se actualice el cache.
+  `sw.js` (`blackjack-v6` → `blackjack-v7`) y `APP_VERSION` en `js/app.js` para que
+  se actualice el cache y la versión que se muestra abajo de todo.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
   saldo, apuesta y mesa; conserva tema, sonido y gestos.
 - El botón de tema arranca siguiendo al sistema; una vez que lo tocás, queda
