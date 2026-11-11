@@ -1,0 +1,318 @@
+/* =========================================================
+   Cartas y fichas
+   Este archivo es el "skin": si querés cambiar el look de las
+   cartas o las fichas, tocá solo las variables y bloques de acá.
+   ========================================================= */
+
+:root {
+  --card-w: clamp(54px, 17.5vw, 76px);
+  --card-h: calc(var(--card-w) * 1.4);
+  --card-radius: calc(var(--card-w) * 0.09);
+
+  --card-bg: #fdfcf7;
+  --card-ink: #1c1f1c;
+  --card-red: #c23f37;
+  --card-edge: rgba(20, 28, 22, 0.14);
+  --card-shadow: 0 1px 1px rgba(10, 20, 14, 0.16), 0 8px 14px -8px rgba(10, 20, 14, 0.45);
+
+  --card-back: #1b4733;
+  --card-back-deep: #14382a;
+  --card-back-line: rgba(255, 255, 255, 0.14);
+  --card-back-mark: rgba(255, 255, 255, 0.55);
+
+  --chip-size: 52px;
+  --chip-stack-size: 30px;
+  --chip-stack-step: 8px;
+  --chip-stack-pad: 9px;
+  --chip-shadow: 0 2px 3px rgba(15, 25, 20, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* ---------- Carta ---------- */
+
+.card {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-edge);
+  background: var(--card-bg);
+  color: var(--card-ink);
+  box-shadow: var(--card-shadow);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  animation: card-in 0.26s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.card[data-suit="hearts"],
+.card[data-suit="diamonds"] {
+  color: var(--card-red);
+}
+
+.card__corner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  gap: 0.06em;
+}
+
+.card__corner--tl {
+  top: 8%;
+  left: 8%;
+}
+
+.card__corner--br {
+  right: 8%;
+  bottom: 8%;
+  transform: rotate(180deg);
+}
+
+.card__rank {
+  font-size: calc(var(--card-w) * 0.2);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.card__suit {
+  font-size: calc(var(--card-w) * 0.18);
+  line-height: 1;
+}
+
+.card__center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--card-w) * 0.34);
+  opacity: 0.9;
+  line-height: 1;
+}
+
+/* Dorso */
+
+.card--back {
+  border-color: rgba(0, 0, 0, 0.28);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 5px, var(--card-back-line) 5px 6px),
+    repeating-linear-gradient(-45deg, transparent 0 5px, var(--card-back-line) 5px 6px),
+    radial-gradient(circle at 50% 50%, var(--card-back) 0 58%, var(--card-back-deep) 100%);
+  box-shadow: inset 0 0 0 3px var(--card-bg), inset 0 0 0 4px rgba(0, 0, 0, 0.25), var(--card-shadow);
+}
+
+.card--back::after {
+  content: "\2660";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--card-w) * 0.34);
+  color: var(--card-back-mark);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96) rotate(-1deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Fichas ---------- */
+
+.chip {
+  --chip-color: #3a5f8f;
+  --chip-deep: #2b4769;
+
+  position: relative;
+  width: var(--chip-size);
+  height: var(--chip-size);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from -11deg,
+    var(--chip-color) 0deg 22deg,
+    var(--chip-deep) 22deg 45deg
+  );
+  box-shadow: var(--chip-shadow);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--chip-size) * 0.1);
+  border-radius: 50%;
+  background: var(--chip-color);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);
+}
+
+.chip::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--chip-size) * 0.18);
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.34);
+  pointer-events: none;
+}
+
+.chip span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: #fff;
+  font-size: calc(var(--chip-size) * 0.28);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip--5 { --chip-color: #3a5f8f; --chip-deep: #2b4769; }
+.chip--10 { --chip-color: #a63f3a; --chip-deep: #7f2e2a; }
+.chip--25 { --chip-color: #2a6b4a; --chip-deep: #1e5137; }
+.chip--100 { --chip-color: #2d3230; --chip-deep: #1b1f1d; }
+.chip--250 { --chip-color: #6b4e9e; --chip-deep: #523a7d; }
+.chip--500 { --chip-color: #9d6a12; --chip-deep: #7a5010; }
+.chip--1000 { --chip-color: #17696b; --chip-deep: #104f51; }
+.chip--2500 { --chip-color: #8e3244; --chip-deep: #6d2434; }
+.chip--5000 { --chip-color: #3c5273; --chip-deep: #2c3d57; }
+.chip--10000 { --chip-color: #3f4a45; --chip-deep: #262e29; }
+.chip--25000 { --chip-color: #7a5a2e; --chip-deep: #5c4322; }
+.chip--combo { --chip-color: #5a625d; --chip-deep: #3f4641; }
+
+[data-theme="dark"] .chip--100 {
+  --chip-color: #4b544e;
+  --chip-deep: #343b37;
+}
+
+[data-theme="dark"] .chip--1000 {
+  --chip-color: #1d7d7f;
+  --chip-deep: #155f61;
+}
+
+[data-theme="dark"] .chip--10000 {
+  --chip-color: #525c56;
+  --chip-deep: #3a423d;
+}
+
+[data-theme="dark"] .chip {
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.chip:active {
+  transform: translateY(1px) scale(0.94);
+  box-shadow: 0 1px 2px rgba(15, 25, 20, 0.24);
+}
+
+.chip:disabled {
+  opacity: 0.38;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .chip:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 10px -4px rgba(15, 25, 20, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+}
+
+/* ---------- Fichas en la mesa ---------- */
+
+.chip--stack {
+  --chip-size: var(--chip-stack-size);
+
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--chip-stack-pad) + var(--i, 0) * var(--chip-stack-step));
+  margin-left: calc(var(--chip-size) * -0.5);
+  transform: translateX(var(--dx, 0)) rotate(var(--rot, 0deg));
+  pointer-events: none;
+  cursor: default;
+  animation: chip-land 0.26s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 26ms);
+}
+
+.chip--stack span {
+  font-size: calc(var(--chip-size) * 0.3);
+}
+
+.chip--fly {
+  position: fixed;
+  z-index: 90;
+  margin: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.4s ease;
+  box-shadow: 0 12px 20px -9px rgba(10, 20, 14, 0.55);
+}
+
+.chip.is-new {
+  animation: chip-unlock 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes chip-land {
+  from {
+    opacity: 0;
+    transform: translateX(var(--dx, 0)) translateY(-14px) rotate(var(--rot, 0deg)) scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(var(--dx, 0)) rotate(var(--rot, 0deg));
+  }
+}
+
+@keyframes chip-unlock {
+  0% {
+    opacity: 0;
+    transform: scale(0.35) rotate(-16deg);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.09) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Ajustes para pantallas bajas ---------- */
+
+@media (max-height: 720px) {
+  :root {
+    --card-w: clamp(48px, 15.5vw, 62px);
+    --chip-size: 46px;
+    --chip-stack-size: 26px;
+    --chip-stack-step: 6px;
+    --chip-stack-pad: 8px;
+  }
+}
+
+@media (max-height: 620px) {
+  :root {
+    --card-w: clamp(42px, 13vw, 54px);
+    --chip-size: 42px;
+    --chip-stack-size: 20px;
+    --chip-stack-step: 4.5px;
+    --chip-stack-pad: 6px;
+  }
+}

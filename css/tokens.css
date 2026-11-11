@@ -1,0 +1,95 @@
+/* =========================================================
+   Tokens globales
+   Cambiá estos valores para retocar toda la app.
+   El aspecto de cartas y fichas vive en cards.css.
+   ========================================================= */
+
+:root {
+  color-scheme: light;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+
+  /* Superficies */
+  --bg: #f6f5f0;
+  --surface: #fffdf9;
+  --surface-2: #efeee7;
+  --surface-3: #e7e7de;
+
+  /* Texto */
+  --ink: #171b18;
+  --ink-soft: #5c655f;
+  --ink-faint: #8b928c;
+
+  /* Líneas */
+  --line: #e3e2d9;
+  --line-strong: #cfd1c6;
+
+  /* Acento */
+  --accent: #1c6647;
+  --accent-strong: #14523a;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(28, 102, 71, 0.1);
+  --accent-glow: rgba(28, 102, 71, 0.22);
+
+  /* Mesa */
+  --table-a: #eef2ea;
+  --table-b: #e5ebe2;
+  --table-line: #d8dfd4;
+  --table-glow: rgba(255, 255, 255, 0.6);
+
+  /* Estados */
+  --win: #157347;
+  --lose: #b23b31;
+  --danger-bg: rgba(178, 59, 49, 0.09);
+  --danger-line: rgba(178, 59, 49, 0.28);
+
+  /* Formas */
+  --radius-xl: 26px;
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px rgba(20, 30, 24, 0.05), 0 1px 1px rgba(20, 30, 24, 0.03);
+  --shadow-md: 0 12px 30px -18px rgba(20, 30, 24, 0.5);
+  --shadow-sheet: 0 -18px 50px -24px rgba(10, 20, 14, 0.45);
+
+  /* Medidas */
+  --tap: 44px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0f1210;
+  --surface: #171b18;
+  --surface-2: #1d231f;
+  --surface-3: #252c27;
+
+  --ink: #eef0e9;
+  --ink-soft: #9aa49d;
+  --ink-faint: #6d7771;
+
+  --line: #262d28;
+  --line-strong: #38423c;
+
+  --accent: #5fc796;
+  --accent-strong: #7bd7ab;
+  --accent-ink: #08160f;
+  --accent-soft: rgba(95, 199, 150, 0.12);
+  --accent-glow: rgba(95, 199, 150, 0.22);
+
+  --table-a: #161d18;
+  --table-b: #111713;
+  --table-line: #232c26;
+  --table-glow: rgba(255, 255, 255, 0.035);
+
+  --win: #6fd3a2;
+  --lose: #ef8d83;
+  --danger-bg: rgba(239, 141, 131, 0.08);
+  --danger-line: rgba(239, 141, 131, 0.26);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 16px 36px -18px rgba(0, 0, 0, 0.8);
+  --shadow-sheet: 0 -18px 50px -22px rgba(0, 0, 0, 0.75);
+}
