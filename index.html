@@ -2,7 +2,7 @@
 <html lang="es-AR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Blackjack</title>
   <meta name="description" content="Blackjack para jugar desde el celular. Fichas virtuales, sin dinero real.">
   <meta name="theme-color" content="#f6f5f0" id="themeColor">
@@ -19,8 +19,11 @@
   <script>
     (function () {
       try {
-        var saved = JSON.parse(localStorage.getItem('blackjack.state.v1') || '{}');
-        var pref = saved.theme;
+        var prefs = JSON.parse(localStorage.getItem('blackjack.prefs.v1') || 'null');
+        if (!prefs) {
+          prefs = JSON.parse(localStorage.getItem('blackjack.state.v1') || '{}');
+        }
+        var pref = prefs && prefs.theme;
         var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         var theme = pref === 'light' || pref === 'dark' ? pref : (dark ? 'dark' : 'light');
         document.documentElement.dataset.theme = theme;
@@ -83,7 +86,8 @@
       <span class="wallet__tag">Fichas virtuales</span>
     </section>
 
-    <main class="table" aria-label="Mesa de blackjack">
+    <main class="table" id="table" aria-label="Mesa de blackjack">
+      <div class="gesture-hint" id="gestureHint" aria-hidden="true" hidden></div>
       <section class="hand hand--dealer" aria-label="Mano de la banca">
         <div class="hand__bar">
           <span class="hand__name">Banca</span>
@@ -121,6 +125,7 @@
           </div>
           <div class="bet__tools">
             <button type="button" class="link-btn" id="clearBetBtn">Limpiar</button>
+            <button type="button" class="link-btn" id="repeatBetBtn">Repetir</button>
             <button type="button" class="link-btn" id="maxBetBtn">All in</button>
           </div>
         </div>
@@ -177,6 +182,26 @@
         </section>
 
         <section class="sheet__section">
+          <h3>Gestos</h3>
+          <div class="pref">
+            <div class="pref__text">
+              <p class="pref__title">Jugar deslizando</p>
+              <p class="sheet__text">Atajos sobre la mesa, además de los botones.</p>
+            </div>
+            <button type="button" class="switch" id="gesturesBtn" role="switch" aria-checked="true" aria-label="Gestos">
+              <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+              <span class="switch__value" id="gesturesValue">Activados</span>
+            </button>
+          </div>
+          <ul class="rules gestures-map">
+            <li><span class="gesture-chip">Doble toque</span> repetir la última apuesta.</li>
+            <li><span class="gesture-chip">←</span> all in · <span class="gesture-chip">↓</span> limpiar la pila y la mesa.</li>
+            <li>Jugando: <span class="gesture-chip">↓</span> pedir · <span class="gesture-chip">↑</span> plantarse · <span class="gesture-chip">←</span> doblar.</li>
+          </ul>
+          <p class="sheet__text">Empezá el gesto lejos del borde para no chocar con el gesto de atrás del teléfono.</p>
+        </section>
+
+        <section class="sheet__section">
           <h3>Tu saldo</h3>
           <p class="sheet__text">Empezás con $1.000. Una vez por día, si tu saldo queda por debajo de $500, lo completamos hasta $500.</p>
           <p class="sheet__text">Son fichas de fantasía. Acá no se juega dinero real.</p>
@@ -199,7 +224,7 @@
           <h3>Progreso</h3>
           <button type="button" class="btn btn--danger" id="resetBtn">Reiniciar saldo y empezar de cero</button>
           <div class="confirm" id="resetConfirm" hidden>
-            <p class="confirm__text">Se borran el saldo, la apuesta y los ajustes guardados.</p>
+            <p class="confirm__text">Se borran el saldo, la apuesta y la mesa. Tus ajustes, el tema y los gestos se mantienen.</p>
             <div class="confirm__actions">
               <button type="button" class="btn btn--soft" id="resetCancel">Cancelar</button>
               <button type="button" class="btn btn--danger" id="resetGo">Sí, reiniciar</button>

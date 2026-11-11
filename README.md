@@ -12,18 +12,41 @@ Se puede instalar como app en el celular (PWA) y funciona offline.
   **100 → 250 → 500 → 1.000 → 2.500 → 5.000 → 10.000 → 25.000**.
   Si hay más de cuatro, la fila se desliza de costado.
 - La apuesta se muestra en la mesa como una pila de fichas, con la denominación
-  más grande posible. **Limpiar** borra la apuesta del round.
+  más grande posible. **Limpiar** borra la apuesta y, si quedó una mano anterior,
+  también limpia la mesa.
+- **Repetir** vuelve a poner la última apuesta jugada (si el saldo alcanza).
 - **Pedir**, **Plantarse** y **Doblar** (solo con las dos cartas iniciales).
 - La banca se planta en 17. Blackjack paga 3:2. Empate devuelve la apuesta.
 - 6 mazos, se mezcla al 25% restante.
 - Sin split, seguro ni rendición.
 
+### Gestos
+
+Los gestos son un atajo opcional; los botones siguen siendo la vía principal y
+accesible. Se pueden apagar en **Ajustes → Gestos** y la elección queda guardada.
+
+- **Apuesta:** doble toque sobre la pila repite la última apuesta; deslizar a la
+  **izquierda** hace **All in**; deslizar hacia **abajo** limpia la apuesta y la mesa.
+- **Jugando:** deslizar hacia **abajo** pide carta, hacia **arriba** se planta y
+  hacia la **izquierda** dobla.
+- El gesto tiene que empezar lejos del borde de la pantalla (unos 28 px) para no
+  chocar con el gesto de atrás del teléfono. El umbral es de 64 px (52 px para
+  limpiar y 80 px para doblar) y hay que hacerlo en menos de 0,9 s.
+- Mientras deslizás aparece el nombre de la acción sobre la mesa. Al soltar se
+  ejecuta una sola vez.
+
+La app bloquea el zoom por completo: doble toque y pellizco. Se refuerza con el
+`viewport`, `touch-action` y un fallback para Safari viejo. Por eso el texto no se
+agranda con pellizco; el tamaño base ya está pensado para mobile.
+
 ### Sonido
 
-Los sonidos son suaves y se sintetizan con Web Audio: no hay archivos de audio,
-así que funcionan offline y no agregan peso. Suenan al tocar fichas, repartir
-cartas y al terminar cada mano. El botón de parlante los silencia y la elección
-queda guardada. En iPhone el audio se habilita con el primer toque, como pide iOS.
+Los sonidos se sintetizan con Web Audio: no hay archivos de audio, así que
+funcionan offline y no agregan peso. Suenan al tocar fichas, repartir cartas y al
+terminar cada mano. El motor sube el volumen con un bus, un realce suave en
+2–4 kHz y un compresor que hace de limitador para que no distorsione. El botón de
+parlante los silencia y la elección queda guardada. En iPhone el audio se habilita
+con el primer toque, como pide iOS.
 
 ### Modo beta
 
@@ -36,7 +59,12 @@ con el saldo. Tiene Deshacer, Limpiar y confirmación con el total en vivo.
 Una vez por día, si tu saldo queda por debajo de **$500**, se completa hasta $500.
 Si tenés $500 o más, no se agrega nada. Si te quedás sin saldo después de usar
 el bono del día, la pantalla de espera muestra cuánto falta para la medianoche.
-El progreso se guarda en el navegador (`localStorage`).
+
+El progreso (`saldo`, `apuesta`, bono diario y última apuesta) se guarda aparte de
+las preferencias (`tema`, `sonido`, `gestos` y si ya viste la ayuda). Reiniciar el
+progreso borra solo lo primero: el tema y los ajustes se mantienen. La clave vieja
+`blackjack.state.v1` se migra automáticamente a `blackjack.progress.v1` y
+`blackjack.prefs.v1`.
 
 ## Correrlo local
 
@@ -139,11 +167,14 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (`blackjack-v3` → `blackjack-v4`) para que se actualice el cache.
+  `sw.js` (`blackjack-v4` → `blackjack-v5`) para que se actualice el cache.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
-  saldo, apuesta, tema y sonido.
+  saldo, apuesta y mesa; conserva tema, sonido y gestos.
 - El botón de tema arranca siguiendo al sistema; una vez que lo tocás, queda
   guardada tu elección.
 - La apuesta se guarda en múltiplos de $5; **All in** permite saldos que no son
   múltiplos de la ficha mínima.
 - El modo beta es temporal y está pensado para pruebas, no para la versión final.
+- **Split:** todavía no está implementado. La idea es hacerlo después, con dos
+  manos y pares del mismo rango (ases con una sola carta y sin blackjack), y
+  permitir doblar después del split. Falta confirmar esas reglas.

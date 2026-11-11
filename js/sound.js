@@ -5,7 +5,7 @@
    Estilo: limpio, redondo y bajo. Sin buzzers.
    ========================================================= */
 
-const VOLUME = 0.9;
+const VOLUME = 1;
 const MAX_TIER = 12;
 
 class SoundEngine {
@@ -14,6 +14,7 @@ class SoundEngine {
     this.master = null;
     this.bus = null;
     this.wet = null;
+    this.output = null;
     this.muted = false;
     this.ok = false;
   }
@@ -32,24 +33,32 @@ class SoundEngine {
       master.gain.value = VOLUME;
 
       const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -20;
-      comp.knee.value = 22;
-      comp.ratio.value = 3;
-      comp.attack.value = 0.003;
-      comp.release.value = 0.25;
+      comp.threshold.value = -8;
+      comp.knee.value = 8;
+      comp.ratio.value = 12;
+      comp.attack.value = 0.0015;
+      comp.release.value = 0.15;
+
+      // Un poco de presencia en 2-4 kHz: se entiende mejor sin subir todo.
+      const treble = ctx.createBiquadFilter();
+      treble.type = 'highshelf';
+      treble.frequency.value = 2600;
+      treble.gain.value = 3.5;
 
       master.connect(comp);
       comp.connect(ctx.destination);
       this.master = master;
+      this.output = comp;
 
       const bus = ctx.createGain();
-      bus.gain.value = 1;
-      bus.connect(master);
+      bus.gain.value = 2.2;
+      bus.connect(treble);
+      treble.connect(master);
 
       const reverb = ctx.createConvolver();
       reverb.buffer = this.impulse();
       const wet = ctx.createGain();
-      wet.gain.value = 0.2;
+      wet.gain.value = 0.15;
       bus.connect(reverb);
       reverb.connect(wet);
       wet.connect(master);
@@ -160,58 +169,58 @@ class SoundEngine {
   chip({ index = 0 } = {}) {
     const step = Math.min(Math.max(index, 0), MAX_TIER);
     const freq = 1280 * Math.pow(0.9, step);
-    this.hiss({ dur: 0.05, gain: 0.07, freq: 2800, q: 0.8 });
-    this.tone({ freq, to: freq * 0.66, dur: 0.095, type: 'triangle', gain: 0.06 });
+    this.hiss({ dur: 0.05, gain: 0.1, freq: 2800, q: 0.8 });
+    this.tone({ freq, to: freq * 0.66, dur: 0.095, type: 'triangle', gain: 0.085 });
   }
 
   card() {
-    this.hiss({ dur: 0.17, gain: 0.05, freq: 820, sweep: 3400, q: 0.65 });
-    this.hiss({ dur: 0.03, gain: 0.028, freq: 5400, q: 1.4, delay: 0.015 });
+    this.hiss({ dur: 0.17, gain: 0.072, freq: 820, sweep: 3400, q: 0.65 });
+    this.hiss({ dur: 0.03, gain: 0.04, freq: 5400, q: 1.4, delay: 0.015 });
   }
 
   win() {
-    this.tone({ freq: 523.25, dur: 0.28, type: 'triangle', gain: 0.075 });
-    this.tone({ freq: 659.25, dur: 0.34, type: 'triangle', gain: 0.06, delay: 0.09 });
-    this.tone({ freq: 783.99, dur: 0.42, type: 'sine', gain: 0.055, delay: 0.18 });
+    this.tone({ freq: 523.25, dur: 0.28, type: 'triangle', gain: 0.105 });
+    this.tone({ freq: 659.25, dur: 0.34, type: 'triangle', gain: 0.085, delay: 0.09 });
+    this.tone({ freq: 783.99, dur: 0.42, type: 'sine', gain: 0.078, delay: 0.18 });
   }
 
   blackjack() {
     const notes = [523.25, 659.25, 783.99, 1046.5];
     notes.forEach((freq, i) => {
-      this.tone({ freq, dur: 0.3, type: 'triangle', gain: 0.065, delay: i * 0.075 });
-      this.tone({ freq: freq * 2, dur: 0.22, type: 'sine', gain: 0.018, delay: i * 0.075 });
+      this.tone({ freq, dur: 0.3, type: 'triangle', gain: 0.09, delay: i * 0.075 });
+      this.tone({ freq: freq * 2, dur: 0.22, type: 'sine', gain: 0.026, delay: i * 0.075 });
     });
   }
 
   lose() {
-    this.tone({ freq: 168, to: 104, dur: 0.34, type: 'sine', gain: 0.085, attack: 0.012 });
-    this.hiss({ dur: 0.16, gain: 0.03, freq: 320, sweep: 140, q: 0.7 });
+    this.tone({ freq: 168, to: 104, dur: 0.34, type: 'sine', gain: 0.12, attack: 0.012 });
+    this.hiss({ dur: 0.16, gain: 0.045, freq: 320, sweep: 140, q: 0.7 });
   }
 
   push() {
-    this.tone({ freq: 392, dur: 0.2, type: 'sine', gain: 0.055 });
-    this.tone({ freq: 523.25, dur: 0.24, type: 'sine', gain: 0.045, delay: 0.11 });
+    this.tone({ freq: 392, dur: 0.2, type: 'sine', gain: 0.08 });
+    this.tone({ freq: 523.25, dur: 0.24, type: 'sine', gain: 0.065, delay: 0.11 });
   }
 
   allin() {
     [0, 3, 6].forEach((index, i) => {
       const freq = 1280 * Math.pow(0.9, index);
-      this.tone({ freq, to: freq * 0.7, dur: 0.1, type: 'triangle', gain: 0.055, delay: i * 0.055 });
+      this.tone({ freq, to: freq * 0.7, dur: 0.1, type: 'triangle', gain: 0.08, delay: i * 0.055 });
     });
-    this.tone({ freq: 196, dur: 0.36, type: 'sine', gain: 0.05, delay: 0.16 });
+    this.tone({ freq: 196, dur: 0.36, type: 'sine', gain: 0.075, delay: 0.16 });
   }
 
   unlockTier() {
-    this.tone({ freq: 784, dur: 0.24, type: 'triangle', gain: 0.06 });
-    this.tone({ freq: 1046.5, dur: 0.34, type: 'sine', gain: 0.05, delay: 0.1 });
+    this.tone({ freq: 784, dur: 0.24, type: 'triangle', gain: 0.085 });
+    this.tone({ freq: 1046.5, dur: 0.34, type: 'sine', gain: 0.07, delay: 0.1 });
   }
 
   toggle() {
-    this.tone({ freq: 660, dur: 0.09, type: 'sine', gain: 0.05 });
+    this.tone({ freq: 660, dur: 0.09, type: 'sine', gain: 0.07 });
   }
 
   tick() {
-    this.hiss({ dur: 0.03, gain: 0.02, freq: 3600, q: 1.2 });
+    this.hiss({ dur: 0.03, gain: 0.028, freq: 3600, q: 1.2 });
   }
 
   play(name, options = {}) {

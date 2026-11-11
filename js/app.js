@@ -23,7 +23,9 @@ import {
 } from './engine.js';
 import { sound, unlockSoundOnGesture } from './sound.js';
 
-const STORAGE_KEY = 'blackjack.state.v1';
+const PREFS_KEY = 'blackjack.prefs.v1';
+const PROGRESS_KEY = 'blackjack.progress.v1';
+const LEGACY_KEY = 'blackjack.state.v1';
 const money = formatMoney;
 let resetting = false;
 
@@ -41,8 +43,11 @@ const els = {
   betTotal: document.getElementById('betTotal'),
   chips: document.getElementById('chips'),
   clearBetBtn: document.getElementById('clearBetBtn'),
+  repeatBetBtn: document.getElementById('repeatBetBtn'),
   maxBetBtn: document.getElementById('maxBetBtn'),
   dealBtn: document.getElementById('dealBtn'),
+  table: document.getElementById('table'),
+  gestureHint: document.getElementById('gestureHint'),
   actionPanel: document.getElementById('actionPanel'),
   inPlay: document.getElementById('inPlay'),
   hitBtn: document.getElementById('hitBtn'),
@@ -60,6 +65,8 @@ const els = {
   toast: document.getElementById('toast'),
   sheet: document.getElementById('sheet'),
   sheetClose: document.getElementById('sheetClose'),
+  gesturesBtn: document.getElementById('gesturesBtn'),
+  gesturesValue: document.getElementById('gesturesValue'),
   sheetInstallBtn: document.getElementById('sheetInstallBtn'),
   installStatus: document.getElementById('installStatus'),
   installSteps: document.getElementById('installSteps'),
@@ -80,36 +87,80 @@ const els = {
 
 /* ---------- Estado y persistencia ---------- */
 
-function loadStored() {
-  const fallback = {
-    balance: START_BALANCE,
-    bet: 0,
-    lastTopUp: dayKey(),
-    theme: 'auto',
-    sound: true,
-  };
-  let raw = null;
+function readStored(key) {
   try {
-    raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    return value && typeof value === 'object' ? value : null;
   } catch {
-    raw = null;
+    return null;
   }
-  if (!raw || typeof raw !== 'object') return fallback;
+}
 
+function writeStored(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const storedPrefs = readStored(PREFS_KEY);
+const storedProgress = readStored(PROGRESS_KEY);
+const legacy = readStored(LEGACY_KEY);
+
+function loadPrefs() {
+  // Al migrar desde la clave vieja, el tema y el sonido se conservan.
+  const source = storedPrefs || legacy || {};
   return {
-    balance:
-      Number.isFinite(raw.balance) && raw.balance >= 0 ? Math.floor(raw.balance) : fallback.balance,
-    bet: Number.isFinite(raw.bet) && raw.bet >= 0 ? Math.floor(raw.bet) : 0,
-    lastTopUp: typeof raw.lastTopUp === 'string' ? raw.lastTopUp : fallback.lastTopUp,
-    theme: raw.theme === 'light' || raw.theme === 'dark' ? raw.theme : 'auto',
-    sound: typeof raw.sound === 'boolean' ? raw.sound : true,
+    theme: source.theme === 'light' || source.theme === 'dark' ? source.theme : 'auto',
+    sound: typeof source.sound === 'boolean' ? source.sound : true,
+    gestures: typeof source.gestures === 'boolean' ? source.gestures : true,
+    seenGestureHint: source.seenGestureHint === true,
   };
 }
 
-const saved = loadStored();
+function loadProgress() {
+  const source = storedProgress || legacy || {};
+  const balance =
+    Number.isFinite(source.balance) && source.balance >= 0
+      ? Math.floor(source.balance)
+      : START_BALANCE;
+  const bet = Number.isFinite(source.bet) && source.bet >= 0 ? Math.floor(source.bet) : 0;
+  const lastBet =
+    Number.isFinite(source.lastBet) && source.lastBet >= 0
+      ? Math.floor(source.lastBet)
+      : bet >= MIN_BET
+        ? bet
+        : 0;
+
+  return {
+    balance,
+    bet,
+    lastTopUp: typeof source.lastTopUp === 'string' ? source.lastTopUp : dayKey(),
+    lastBet,
+  };
+}
+
+const prefs = loadPrefs();
+const progress = loadProgress();
+
+// Guarda las claves nuevas una sola vez y retira la vieja.
+const wrotePrefs = storedPrefs ? true : writeStored(PREFS_KEY, prefs);
+const wroteProgress = storedProgress ? true : writeStored(PROGRESS_KEY, progress);
+if (legacy && wrotePrefs && wroteProgress) {
+  try {
+    localStorage.removeItem(LEGACY_KEY);
+  } catch {
+    /* sin almacenamiento */
+  }
+}
 
 const state = {
-  ...saved,
+  ...progress,
+  ...prefs,
   shoe: shuffle(createShoe(DECKS)),
   phase: 'betting', // betting | dealing | player | dealer
   player: [],
@@ -121,24 +172,29 @@ const state = {
   status: { text: 'Hacé tu apuesta', tone: 'neutral' },
 };
 
-function save() {
+function saveProgress() {
   // Mientras se reinicia el progreso no hay que volver a escribir nada:
   // pagehide dispara save() justo despues de borrar el localStorage.
   if (resetting) return;
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        balance: state.balance,
-        bet: state.bet,
-        lastTopUp: state.lastTopUp,
-        theme: state.theme,
-        sound: state.sound,
-      }),
-    );
-  } catch {
-    /* almacenamiento no disponible */
-  }
+  writeStored(PROGRESS_KEY, {
+    balance: state.balance,
+    bet: state.bet,
+    lastTopUp: state.lastTopUp,
+    lastBet: state.lastBet,
+  });
+}
+
+function savePrefs() {
+  writeStored(PREFS_KEY, {
+    theme: state.theme,
+    sound: state.sound,
+    gestures: state.gestures,
+    seenGestureHint: state.seenGestureHint,
+  });
+}
+
+function save() {
+  saveProgress();
 }
 
 /* ---------- Tema ---------- */
@@ -171,6 +227,13 @@ function applySound() {
   els.soundBtn.setAttribute('aria-pressed', String(state.sound));
   els.soundBtn.setAttribute('aria-label', state.sound ? 'Silenciar sonidos' : 'Activar sonidos');
   sound.setMuted(!state.sound);
+}
+
+function applyGestures() {
+  document.documentElement.dataset.gestures = state.gestures ? 'on' : 'off';
+  els.gesturesBtn.setAttribute('aria-checked', String(state.gestures));
+  els.gesturesBtn.classList.toggle('is-on', state.gestures);
+  els.gesturesValue.textContent = state.gestures ? 'Activados' : 'Desactivados';
 }
 
 function buildAddChips() {
@@ -457,7 +520,19 @@ function renderControls() {
     state.bet <= state.balance;
 
   els.dealBtn.disabled = !canDeal;
-  els.clearBetBtn.disabled = !betting || state.bet <= 0;
+  const hasCards = state.player.length > 0 || state.dealer.length > 0;
+  els.clearBetBtn.disabled = !betting || (state.bet <= 0 && !hasCards);
+  els.repeatBetBtn.disabled =
+    !betting ||
+    state.lastBet < MIN_BET ||
+    state.lastBet > state.balance ||
+    state.lastBet === state.bet;
+  els.repeatBetBtn.setAttribute(
+    'aria-label',
+    state.lastBet >= MIN_BET
+      ? `Repetir la apuesta de ${money(state.lastBet)}`
+      : 'Repetir la última apuesta',
+  );
   els.maxBetBtn.disabled =
     !betting || state.balance < MIN_BET || state.bet >= state.balance;
 
@@ -510,14 +585,54 @@ function addChips(value, source = null) {
 }
 
 function clearBet() {
-  if (state.phase !== 'betting' || state.bet === 0) return;
+  if (state.phase !== 'betting') return;
+  const hadCards = state.player.length > 0 || state.dealer.length > 0;
+  if (state.bet === 0 && !hadCards) return;
+
   state.bet = 0;
   state.roundBet = 0;
-  els.betSpot.classList.remove('is-win', 'is-lose', 'is-push');
+  state.player = [];
+  state.dealer = [];
+  state.holeHidden = false;
+  state.locked = false;
+  els.betSpot.classList.remove('is-win', 'is-lose', 'is-push', 'is-allin');
   sound.play('tick');
   setBetMessage();
   save();
   render();
+  if (hadCards) toast('Mesa limpia');
+}
+
+function repeatBet() {
+  if (state.phase !== 'betting') return;
+
+  const target = state.lastBet;
+  if (target < MIN_BET) {
+    toast('Todavía no hay una apuesta para repetir');
+    return;
+  }
+  if (target > state.balance) {
+    toast(`No te alcanza para repetir ${money(target)}`);
+    return;
+  }
+  if (target === state.bet) {
+    toast(`Ya tenés ${money(target)} apostado`);
+    return;
+  }
+
+  state.bet = target;
+  state.roundBet = 0;
+  els.betSpot.classList.remove('is-win', 'is-lose', 'is-push', 'is-allin');
+  playChip(target);
+  setBetMessage();
+  save();
+  render();
+  toast(`Apuesta repetida: ${money(target)}`);
+
+  els.betSpot.classList.remove('is-repeat');
+  void els.betSpot.offsetWidth;
+  els.betSpot.classList.add('is-repeat');
+  setTimeout(() => els.betSpot.classList.remove('is-repeat'), 520);
 }
 
 function allBet() {
@@ -554,6 +669,7 @@ async function deal() {
   state.busy = true;
   state.phase = 'dealing';
   state.roundBet = state.bet;
+  state.lastBet = state.bet;
   state.balance -= state.bet;
   state.player = [];
   state.dealer = [];
@@ -970,19 +1086,225 @@ function confirmAddFunds() {
   closeAddSheet();
 }
 
+/* ---------- Gestos ---------- */
+
+const GESTURE_EDGE = 28;
+const SWIPE_MIN = 64;
+const SWIPE_LEFT_MIN = 80;
+const SWIPE_MAX_MS = 900;
+const DOUBLE_TAP_MS = 320;
+const DOUBLE_TAP_DIST = 32;
+
+let gesture = null;
+let lastTap = { t: 0, x: 0, y: 0 };
+let hintTimer = 0;
+
+function gesturesAvailable() {
+  return state.gestures && !document.body.classList.contains('has-sheet');
+}
+
+function showGestureHint(text) {
+  const hint = els.gestureHint;
+  if (!hint) return;
+  clearTimeout(hintTimer);
+  hint.textContent = text;
+  hint.hidden = false;
+  requestAnimationFrame(() => hint.classList.add('is-visible'));
+  els.table.classList.add('is-gesturing');
+}
+
+function hideGestureHint() {
+  const hint = els.gestureHint;
+  if (!hint) return;
+  hint.classList.remove('is-visible');
+  els.table.classList.remove('is-gesturing');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => {
+    hint.hidden = true;
+  }, 180);
+}
+
+function swipeDirection(start, dx, dy) {
+  const adx = Math.abs(dx);
+  const ady = Math.abs(dy);
+
+  if (start.mode === 'bet') {
+    if (dx <= -SWIPE_MIN && adx > ady * 1.15) return 'left';
+    if (dy >= 52 && ady > adx * 1.15) return 'down';
+    return '';
+  }
+
+  if (dy >= SWIPE_MIN && ady > adx * 1.15) return 'down';
+  if (dy <= -SWIPE_MIN && ady > adx * 1.15) return 'up';
+  if (dx <= -SWIPE_LEFT_MIN && adx > ady * 1.15) return 'left';
+  return '';
+}
+
+function gestureHintText(start, direction) {
+  if (start.mode === 'bet') {
+    return direction === 'left' ? '← All in' : '↓ Limpiar';
+  }
+  if (direction === 'down') return '↓ Pedir';
+  if (direction === 'up') return '↑ Plantarse';
+  return els.doubleBtn.disabled ? '← Doblar (no disponible)' : '← Doblar';
+}
+
+function handleSpotTap(event) {
+  const now = performance.now();
+  const near =
+    Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < DOUBLE_TAP_DIST;
+
+  if (now - lastTap.t < DOUBLE_TAP_MS && near) {
+    lastTap = { t: 0, x: 0, y: 0 };
+    repeatBet();
+    return;
+  }
+  lastTap = { t: now, x: event.clientX, y: event.clientY };
+}
+
+function onTablePointerDown(event) {
+  if (!gesturesAvailable() || gesture) return;
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+  const x = event.clientX;
+  const y = event.clientY;
+  // Deja libre el borde: ahi el sistema usa el gesto de atras.
+  if (x < GESTURE_EDGE || x > window.innerWidth - GESTURE_EDGE) return;
+  if (y < GESTURE_EDGE || y > window.innerHeight - GESTURE_EDGE) return;
+
+  const betting = state.phase === 'betting';
+  const onSpot = Boolean(event.target.closest('.bet-spot'));
+  if (betting && !onSpot) return;
+  if (!betting && state.phase !== 'player') return;
+
+  gesture = {
+    id: event.pointerId,
+    x0: x,
+    y0: y,
+    t0: performance.now(),
+    mode: betting ? 'bet' : 'play',
+    onSpot,
+    direction: '',
+  };
+
+  try {
+    els.table.setPointerCapture(event.pointerId);
+  } catch {
+    /* algunos navegadores no lo permiten */
+  }
+}
+
+function onTablePointerMove(event) {
+  if (!gesture || event.pointerId !== gesture.id) return;
+
+  const dx = event.clientX - gesture.x0;
+  const dy = event.clientY - gesture.y0;
+  if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+
+  const direction = swipeDirection(gesture, dx, dy);
+  if (direction === gesture.direction) return;
+  gesture.direction = direction;
+
+  if (direction) showGestureHint(gestureHintText(gesture, direction));
+  else hideGestureHint();
+}
+
+function onTablePointerUp(event) {
+  if (!gesture || event.pointerId !== gesture.id) return;
+
+  const start = gesture;
+  gesture = null;
+  try {
+    els.table.releasePointerCapture(event.pointerId);
+  } catch {
+    /* ya no estaba capturado */
+  }
+  hideGestureHint();
+
+  const dx = event.clientX - start.x0;
+  const dy = event.clientY - start.y0;
+  const adx = Math.abs(dx);
+  const ady = Math.abs(dy);
+  const elapsed = performance.now() - start.t0;
+
+  if (adx < 12 && ady < 12) {
+    if (start.mode === 'bet' && start.onSpot && elapsed < DOUBLE_TAP_MS) {
+      handleSpotTap(event);
+    }
+    return;
+  }
+  if (elapsed > SWIPE_MAX_MS) return;
+
+  const direction = swipeDirection(start, dx, dy);
+  if (!direction) return;
+
+  if (start.mode === 'bet') {
+    if (direction === 'left') allBet();
+    else if (direction === 'down') clearBet();
+    return;
+  }
+
+  if (direction === 'down') hit();
+  else if (direction === 'up') stand();
+  else if (direction === 'left') {
+    if (els.doubleBtn.disabled) {
+      toast('Para doblar necesitás 2 cartas y saldo suficiente');
+      return;
+    }
+    doubleDown();
+  }
+}
+
+function onTablePointerCancel(event) {
+  if (!gesture || event.pointerId !== gesture.id) return;
+  gesture = null;
+  hideGestureHint();
+}
+
+els.table.addEventListener('pointerdown', onTablePointerDown);
+els.table.addEventListener('pointermove', onTablePointerMove);
+els.table.addEventListener('pointerup', onTablePointerUp);
+els.table.addEventListener('pointercancel', onTablePointerCancel);
+els.table.addEventListener('lostpointercapture', (event) => {
+  if (!gesture || gesture.id !== event.pointerId) return;
+  gesture = null;
+  hideGestureHint();
+});
+els.table.addEventListener('contextmenu', (event) => event.preventDefault());
+
+// Safari viejo ignora user-scalable=no: sus eventos de pellizco se cortan aca.
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
+}
+document.addEventListener(
+  'wheel',
+  (event) => {
+    if (event.ctrlKey) event.preventDefault();
+  },
+  { passive: false },
+);
+
 /* ---------- Eventos ---------- */
 
 els.themeBtn.addEventListener('click', () => {
   state.theme = resolvedTheme() === 'dark' ? 'light' : 'dark';
   applyTheme();
-  save();
+  savePrefs();
 });
 
 els.soundBtn.addEventListener('click', () => {
   state.sound = !state.sound;
   applySound();
-  save();
+  savePrefs();
   if (state.sound) sound.play('toggle');
+});
+
+els.gesturesBtn.addEventListener('click', () => {
+  state.gestures = !state.gestures;
+  applyGestures();
+  savePrefs();
+  sound.play('toggle');
+  toast(state.gestures ? 'Gestos activados' : 'Gestos desactivados · seguí con los botones');
 });
 
 els.addFundsBtn.addEventListener('click', openAddSheet);
@@ -1014,7 +1336,8 @@ els.resetCancel.addEventListener('click', () => {
 els.resetGo.addEventListener('click', () => {
   resetting = true;
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(PROGRESS_KEY);
+    localStorage.removeItem(LEGACY_KEY);
   } catch {
     /* sin almacenamiento */
   }
@@ -1045,6 +1368,7 @@ els.chips.addEventListener('click', (event) => {
 });
 
 els.clearBetBtn.addEventListener('click', clearBet);
+els.repeatBetBtn.addEventListener('click', repeatBet);
 els.maxBetBtn.addEventListener('click', allBet);
 els.dealBtn.addEventListener('click', deal);
 els.hitBtn.addEventListener('click', hit);
@@ -1064,6 +1388,7 @@ window.addEventListener('pagehide', save);
 
 applyTheme();
 applySound();
+applyGestures();
 buildAddChips();
 unlockSoundOnGesture();
 applyInitialState();
@@ -1078,6 +1403,17 @@ function applyInitialState() {
   renderInstall();
   tick();
   setInterval(tick, 1000);
+  scheduleGestureHint();
+}
+
+function scheduleGestureHint() {
+  if (!state.gestures || state.seenGestureHint || state.balance < MIN_BET) return;
+  setTimeout(() => {
+    if (!state.gestures) return;
+    toast('Deslizá la pila: ← all in · ↓ limpiar · doble toque repite');
+    state.seenGestureHint = true;
+    savePrefs();
+  }, 1400);
 }
 
 if ('serviceWorker' in navigator) {
