@@ -9,6 +9,8 @@ import {
   isSoft,
   isBlackjack,
   dealerShouldHit,
+  canSplit,
+  settleHand,
   roundPayout,
   dailyTopUp,
   dayKey,
@@ -19,6 +21,7 @@ import {
   CHIP_TIERS,
   DECKS,
   DAILY_FLOOR,
+  MAX_HANDS,
 } from '../js/engine.js';
 
 const hand = (...specs) =>
@@ -69,6 +72,85 @@ test('la banca pide con 16 y se planta con 17 (incluido soft 17)', () => {
   assert.equal(dealerShouldHit(hand('10S', '7H')), false);
   assert.equal(dealerShouldHit(hand('AS', '6H')), false);
   assert.equal(dealerShouldHit(hand('AS', '5H')), true);
+});
+
+/* ---------- Split ---------- */
+
+test('se divide con dos cartas del mismo valor', () => {
+  assert.equal(canSplit(hand('8S', '8H')), true);
+  assert.equal(canSplit(hand('10S', 'JH')), true);
+  assert.equal(canSplit(hand('QS', 'KD')), true);
+  assert.equal(canSplit(hand('AS', 'AH')), true);
+  assert.equal(canSplit(hand('8S', '9H')), false);
+  assert.equal(canSplit(hand('AS')), false);
+  assert.equal(canSplit(hand('AS', 'AH', 'AD')), false);
+});
+
+test('el maximo de manos es cuatro', () => {
+  assert.equal(MAX_HANDS, 4);
+});
+
+test('se resuelve cada mano por separado', () => {
+  const dealer = hand('10S', '8H'); // 18
+
+  assert.deepEqual(settleHand(hand('10S', '9H'), dealer, 25), {
+    result: 'win',
+    blackjack: false,
+    payout: 50,
+    net: 25,
+  });
+  assert.deepEqual(settleHand(hand('10S', '7H'), dealer, 25), {
+    result: 'lose',
+    blackjack: false,
+    payout: 0,
+    net: -25,
+  });
+  assert.deepEqual(settleHand(hand('10S', '8H'), dealer, 25), {
+    result: 'push',
+    blackjack: false,
+    payout: 25,
+    net: 0,
+  });
+});
+
+test('la banca pasada paga todas las manos que siguen en pie', () => {
+  const dealer = hand('10S', '6H', 'KH'); // 26
+  assert.equal(settleHand(hand('2S', '3H'), dealer, 10).result, 'win');
+  assert.equal(settleHand(hand('KS', 'QH'), dealer, 10).result, 'win');
+});
+
+test('una mano pasada pierde aunque la banca se pase', () => {
+  const dealer = hand('10S', '6H', 'KH'); // 26
+  assert.deepEqual(settleHand(hand('10S', '6H', 'KH'), dealer, 10), {
+    result: 'lose',
+    blackjack: false,
+    payout: 0,
+    net: -10,
+  });
+});
+
+test('el blackjack natural paga 3:2 y el 21 post-split paga 1:1', () => {
+  const dealer = hand('10S', '8H'); // 18
+  const natural = settleHand(hand('AS', 'KH'), dealer, 25, { blackjack: true });
+  assert.equal(natural.blackjack, true);
+  assert.deepEqual(
+    { result: natural.result, payout: natural.payout, net: natural.net },
+    { result: 'win', payout: 63, net: 38 },
+  );
+
+  const split21 = settleHand(hand('AS', 'KH'), dealer, 25, { blackjack: false });
+  assert.equal(split21.blackjack, false);
+  assert.deepEqual(
+    { result: split21.result, payout: split21.payout, net: split21.net },
+    { result: 'win', payout: 50, net: 25 },
+  );
+});
+
+test('dos blackjacks empatan', () => {
+  const result = settleHand(hand('AS', 'KH'), hand('AD', 'QH'), 25, { blackjack: true });
+  assert.equal(result.result, 'push');
+  assert.equal(result.blackjack, false);
+  assert.equal(result.net, 0);
 });
 
 /* ---------- Mazo ---------- */

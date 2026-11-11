@@ -5,6 +5,7 @@ export const START_BALANCE = 1000;
 export const DAILY_FLOOR = 500;
 export const DECKS = 6;
 export const RESHUFFLE_AT = 78; // ~25% de 312 cartas
+export const MAX_HANDS = 4;
 
 export const SUITS = ['spades', 'hearts', 'diamonds', 'clubs'];
 export const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -94,6 +95,50 @@ export function dealerShouldHit(cards) {
 }
 
 // La banca se planta en 17, incluido soft 17.
+
+/**
+ * Se puede dividir con dos cartas del mismo valor: 8 y 8, 10 y J, etc.
+ * Un as vale 11, asi que dos ases tambien entran.
+ */
+export function canSplit(cards) {
+  return (
+    Array.isArray(cards) &&
+    cards.length === 2 &&
+    rankValue(cards[0].rank) === rankValue(cards[1].rank)
+  );
+}
+
+/**
+ * Resuelve una mano contra la banca.
+ * `blackjack` solo se activa en la mano original de dos cartas: un 21
+ * conseguido despues de dividir paga 1:1.
+ */
+export function settleHand(playerCards, dealerCards, bet, { blackjack = false } = {}) {
+  if (!Number.isFinite(bet) || bet <= 0) return { result: 'push', payout: 0, net: 0 };
+
+  const player = handValue(playerCards);
+  const dealer = handValue(dealerCards);
+
+  if (player > 21) {
+    const { payout, net } = roundPayout('lose', bet);
+    return { result: 'lose', blackjack: false, payout, net };
+  }
+
+  if (dealer > 21 || player > dealer) {
+    const natural =
+      blackjack && player === 21 && playerCards.length === 2 && !isBlackjack(dealerCards);
+    const { payout, net } = roundPayout('win', bet, { blackjack: natural });
+    return { result: 'win', blackjack: natural, payout, net };
+  }
+
+  if (player < dealer) {
+    const { payout, net } = roundPayout('lose', bet);
+    return { result: 'lose', blackjack: false, payout, net };
+  }
+
+  const { payout, net } = roundPayout('push', bet);
+  return { result: 'push', blackjack: false, payout, net };
+}
 
 /**
  * Resultado economico de una mano.

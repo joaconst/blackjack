@@ -15,23 +15,29 @@ Se puede instalar como app en el celular (PWA) y funciona offline.
   más grande posible. **Limpiar** borra la apuesta y, si quedó una mano anterior,
   también limpia la mesa.
 - **Repetir** vuelve a poner la última apuesta jugada (si el saldo alcanza).
-- **Pedir**, **Plantarse** y **Doblar** (solo con las dos cartas iniciales).
+- **Pedir**, **Plantarse**, **Doblar** (solo con las dos cartas iniciales) y
+  **Dividir** cuando tenés dos cartas del mismo valor.
+- **Dividir** crea una mano nueva con la misma apuesta y se puede repetir hasta
+  tener **4 manos**. Los ases divididos reciben una sola carta y se plantan solos.
+  Un 21 después de dividir paga 1:1; el blackjack natural sigue pagando 3:2.
 - La banca se planta en 17. Blackjack paga 3:2. Empate devuelve la apuesta.
 - 6 mazos, se mezcla al 25% restante.
-- Sin split, seguro ni rendición.
+- Sin seguro ni rendición.
 
 ### Gestos
 
 Los gestos son un atajo opcional; los botones siguen siendo la vía principal y
 accesible. Se pueden apagar en **Ajustes → Gestos** y la elección queda guardada.
 
-- **Apuesta:** doble toque sobre la pila repite la última apuesta; deslizar a la
-  **izquierda** hace **All in**; deslizar hacia **abajo** limpia la apuesta y la mesa.
-- **Jugando:** deslizar hacia **abajo** pide carta, hacia **arriba** se planta y
-  hacia la **izquierda** dobla.
+- **Apuesta:** doble toque sobre la pila reparte (si no hay apuesta, restaura la
+  última); arrastrar la pila hacia la **izquierda** hace **All in**; deslizar hacia
+  **abajo** limpia la apuesta y la mesa desde **cualquier parte de la mesa**.
+- **Jugando:** deslizar hacia **abajo** pide carta, hacia **arriba** se planta,
+  hacia la **izquierda** dobla y hacia la **derecha** divide.
 - El gesto tiene que empezar lejos del borde de la pantalla (unos 28 px) para no
   chocar con el gesto de atrás del teléfono. El umbral es de 64 px (52 px para
-  limpiar y 80 px para doblar) y hay que hacerlo en menos de 0,9 s.
+  limpiar, 80 px para doblar y 110 px para All in) y hay que hacerlo en menos de
+  0,9 s.
 - Mientras deslizás aparece el nombre de la acción sobre la mesa. Al soltar se
   ejecuta una sola vez.
 
@@ -101,6 +107,7 @@ npm test
 ```
 
 Cubren puntajes, ases, bust, blackjack, reglas de la banca, pagos 3:2, empate,
+split (mismo valor, hasta 4 manos, ases y 21 post-split), liquidación por mano,
 doble, mazo, lógica del saldo diario y la pila de fichas (suma exacta, máximo de
 7 fichas y denominaciones disponibles según el saldo).
 
@@ -167,7 +174,7 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (`blackjack-v4` → `blackjack-v5`) para que se actualice el cache.
+  `sw.js` (`blackjack-v5` → `blackjack-v6`) para que se actualice el cache.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
   saldo, apuesta y mesa; conserva tema, sonido y gestos.
 - El botón de tema arranca siguiendo al sistema; una vez que lo tocás, queda
@@ -175,6 +182,6 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 - La apuesta se guarda en múltiplos de $5; **All in** permite saldos que no son
   múltiplos de la ficha mínima.
 - El modo beta es temporal y está pensado para pruebas, no para la versión final.
-- **Split:** todavía no está implementado. La idea es hacerlo después, con dos
-  manos y pares del mismo rango (ases con una sola carta y sin blackjack), y
-  permitir doblar después del split. Falta confirmar esas reglas.
+- **Split:** dos cartas del mismo valor, hasta 4 manos. Los ases reciben una sola
+  carta y se plantan solos; el 21 post-split paga 1:1 y se puede doblar después
+  de dividir. El blackjack natural original conserva el pago 3:2.

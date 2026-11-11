@@ -107,13 +107,7 @@
         </div>
       </div>
 
-      <section class="hand hand--player" aria-label="Tu mano">
-        <div class="hand__bar">
-          <span class="hand__name">Vos</span>
-          <span class="score" id="playerScore">&mdash;</span>
-        </div>
-        <div class="hand__cards" id="playerCards"></div>
-      </section>
+      <section class="player-hands" id="playerHands" aria-label="Tus manos"></section>
     </main>
 
     <footer class="controls">
@@ -142,9 +136,14 @@
           <button type="button" class="btn btn--soft" id="hitBtn">Pedir</button>
           <button type="button" class="btn btn--soft" id="standBtn">Plantarse</button>
         </div>
-        <button type="button" class="btn btn--soft btn--double" id="doubleBtn">
-          Doblar <span class="btn__tag" id="doubleTag">+$0</span>
-        </button>
+        <div class="actions actions--pair">
+          <button type="button" class="btn btn--soft btn--double" id="doubleBtn">
+            Doblar <span class="btn__tag" id="doubleTag">+$0</span>
+          </button>
+          <button type="button" class="btn btn--soft btn--double" id="splitBtn" hidden>
+            Dividir <span class="btn__tag" id="splitTag">+$0</span>
+          </button>
+        </div>
       </div>
 
       <div class="panel panel--empty" id="noFundsPanel" hidden>
@@ -178,6 +177,8 @@
             <li>Blackjack paga 3:2.</li>
             <li>Si empatás, recuperás tu apuesta.</li>
             <li>Doblar solo con las dos cartas iniciales.</li>
+            <li>Dividir con dos cartas del mismo valor, hasta 4 manos. Se puede doblar después de dividir y el 21 post-split paga 1:1.</li>
+            <li>Los ases divididos reciben una sola carta y se plantan solos.</li>
           </ul>
         </section>
 
@@ -194,9 +195,10 @@
             </button>
           </div>
           <ul class="rules gestures-map">
-            <li><span class="gesture-chip">Doble toque</span> repetir la última apuesta.</li>
-            <li><span class="gesture-chip">←</span> all in · <span class="gesture-chip">↓</span> limpiar la pila y la mesa.</li>
-            <li>Jugando: <span class="gesture-chip">↓</span> pedir · <span class="gesture-chip">↑</span> plantarse · <span class="gesture-chip">←</span> doblar.</li>
+            <li><span class="gesture-chip">Doble toque</span> sobre la pila reparte; si está en $0, usa la última apuesta.</li>
+            <li><span class="gesture-chip">↓</span> limpiar deslizando desde cualquier parte de la mesa.</li>
+            <li><span class="gesture-chip">←</span> all in arrastrando la pila hacia la izquierda.</li>
+            <li>Jugando: <span class="gesture-chip">↓</span> pedir · <span class="gesture-chip">↑</span> plantarse · <span class="gesture-chip">←</span> doblar · <span class="gesture-chip">→</span> dividir.</li>
           </ul>
           <p class="sheet__text">Empezá el gesto lejos del borde para no chocar con el gesto de atrás del teléfono.</p>
         </section>
