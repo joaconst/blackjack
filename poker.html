@@ -154,6 +154,9 @@
             <button type="button" class="btn btn--primary" id="raiseConfirm">Subir</button>
           </div>
         </div>
+        <div class="poker-skip" id="skipPanel" hidden>
+          <button type="button" class="btn btn--primary" id="skipBtn">Ver el final</button>
+        </div>
       </div>
 
       <div class="panel panel--empty" id="noFundsPanel" hidden>
@@ -190,6 +193,28 @@
             <li>Al terminar la mano, lo que ganaste o perdiste se suma a tu saldo.</li>
             <li>Si recargás en medio de una mano, la mesa se reanuda donde estaba.</li>
           </ul>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Gestos</h3>
+          <div class="pref">
+            <div class="pref__text">
+              <p class="pref__title">Atajos en la mesa</p>
+              <p class="sheet__text">Además de los botones.</p>
+            </div>
+            <button type="button" class="switch" id="gesturesBtn" role="switch" aria-checked="true" aria-label="Gestos">
+              <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+              <span class="switch__value" id="gesturesValue">Activados</span>
+            </button>
+          </div>
+          <ul class="rules gestures-map">
+            <li><span class="gesture-chip">→</span> igualar o pasar.</li>
+            <li><span class="gesture-chip">←</span> retirarte; deslizá bien a la izquierda y soltá.</li>
+            <li><span class="gesture-chip">Doble toque</span> para abrir la subida.</li>
+            <li><span class="gesture-chip">Doble toque</span> después de retirarte para ver el final.</li>
+            <li>El all in sigue en el panel de subida, con confirmación.</li>
+          </ul>
+          <p class="sheet__text">Empezá el gesto lejos del borde para no chocar con el gesto de atrás del teléfono.</p>
         </section>
 
         <section class="sheet__section">

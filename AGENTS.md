@@ -11,7 +11,7 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.1` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.2` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
@@ -29,9 +29,10 @@ node --check sw.js
 Servidor de pruebas usado en sesiones anteriores: `http://localhost:4173/`.
 Las pruebas E2E con Playwright viven en `C:\Users\const\AppData\Local\Temp\opencode\bj-test\`
 (`run8.cjs` regresión de blackjack, `run-poker.cjs` póker y selector,
-`visual.cjs` capturas, `probe-touch*.cjs` gestos). Son temporales: si se limpian,
-hay que rehacerlas. Playwright usa `channel: 'msedge'`, viewport 390×844 y
-320×568, `isMobile` y `hasTouch`.
+`probe-raise2.cjs` panel de subida, `probe-poker-gestures.cjs` gestos y salto al
+final, `visual.cjs` capturas, `probe-touch*.cjs` gestos). Son temporales: si se
+limpian, hay que rehacerlas. Playwright usa `channel: 'msedge'`, viewport 390×844
+y 320×568, `isMobile` y `hasTouch`.
 
 ## Reglas del proyecto
 
@@ -61,7 +62,7 @@ js/engine.js          reglas y cálculos puros del blackjack, sin DOM
 js/poker-engine.js    evaluador, apuestas, botes y bots, sin DOM
 js/sound.js           Web Audio sintetizado (no tocar sin pedido)
 js/app.js             estado, DOM, persistencia, gestos, PWA
-js/poker.js           controlador del póker, turnos, bots y saldo compartido
+js/poker.js           controlador del póker, turnos, bots, gestos y saldo compartido
 sw.js                 cache offline (subir CACHE en cada deploy)
 tests/engine.test.js  28 tests del blackjack
 tests/poker.test.js   29 tests del póker
@@ -82,13 +83,20 @@ tests/poker.test.js   29 tests del póker
 - Constantes de gestos en `js/app.js`: borde 28 px, All in 90 px (aviso 45 px,
   arrastre hasta 2500 ms), limpiar 52 px, juego 64/80 px en 0,9 s, doble toque
   450 ms y 40 px.
+- Gestos del póker en `js/poker.js`: borde 28 px, doble toque 450 ms/40 px,
+  derecha 52 px para igualar/pasar, izquierda 90 px para retirarse (aviso a los
+  45 px) en 0,9 s. Son horizontales para no pelear con el scroll (`touch-action:
+  pan-y`). Después de retirarse, el doble toque o `#skipBtn` llaman a
+  `skipToEnd()`, que cancela `state.botTimer` y corre a los bots hasta `settled`
+  con una guarda de 500 acciones. La preferencia `gestures` es compartida con el
+  blackjack.
 - Póker: ciegas $5/$10, cap por mano $300 (`TABLE_CAP`), bots con Monte Carlo
   (`sims: 140`) y demoras de 620–1140 ms. El saldo disponible durante una mano es
   `balance - (startStack - stack del jugador)`.
 - Montos de subida: `raiseOptions`, `clampRaiseTarget` y `stepRaiseTarget` en
   `js/poker-engine.js` son la única fuente de verdad. El panel usa presets
   (mínima, ½ pozo, pozo, all in) y pasos de una ciega chica; reutilizar esas
-  funciones cuando se agreguen gestos. El all-in siempre pide confirmación.
+  funciones si se agregan gestos de subida. El all-in siempre pide confirmación.
 
 ## Seeds deterministas para E2E
 
@@ -110,8 +118,11 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
    errores de consola.
 4. Playwright póker (`run-poker.cjs`): selector, persistencia, reanudación,
    bloqueo de cambio en mano, liquidación del saldo, regreso al blackjack y sin
-   desborde en 320×568. Probar aparte el panel de subida: presets, −/+, cancelar,
-   all-in confirmado y botón de confirmar visible en 320×568.
+   desborde en 320×568. Probar aparte el panel de subida (`probe-raise2.cjs`):
+   presets, −/+, cancelar, all-in confirmado y botón de confirmar visible en
+   320×568. Probar los gestos (`probe-poker-gestures.cjs`): doble toque, swipe
+   derecha/izquierda, interruptor apagado, botón Ver el final, recarga después de
+   retirarse y salto al ganador en 390×844 y 320×568.
 5. Si se tocó interacción, probar gestos con touch real simulado (CDP
    `Input.dispatchTouchEvent`), no solo con clicks.
 6. Commit + push y confirmar que `HEAD` y `origin/main` coinciden.

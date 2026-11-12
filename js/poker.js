@@ -27,17 +27,29 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.1';
+const APP_VERSION = 'v2.2';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 const BOT_PROFILES = ['balanced', 'tight', 'aggro'];
 const BOT_DELAY_MIN = 620;
 const BOT_DELAY_MAX = 1140;
 
+/* Gestos: mismos umbrales que el blackjack donde tiene sentido. */
+const GESTURE_EDGE = 28;
+const TAP_MAX_MS = 500;
+const DOUBLE_TAP_MS = 450;
+const DOUBLE_TAP_DIST = 40;
+const SWIPE_CALL_MIN = 52;
+const SWIPE_FOLD_HINT = 45;
+const SWIPE_FOLD_MIN = 90;
+const SWIPE_MAX_MS = 900;
+const MAX_SKIP_ACTIONS = 500;
+
 let resetting = false;
 
 const els = {
   balance: document.getElementById('balance'),
+  pokerTable: document.getElementById('pokerTable'),
   seats: document.getElementById('seats'),
   community: document.getElementById('community'),
   pot: document.getElementById('pot'),
@@ -69,11 +81,15 @@ const els = {
   raisePlus: document.getElementById('raisePlus'),
   raiseCancel: document.getElementById('raiseCancel'),
   raiseConfirm: document.getElementById('raiseConfirm'),
+  skipPanel: document.getElementById('skipPanel'),
+  skipBtn: document.getElementById('skipBtn'),
   noFundsPanel: document.getElementById('noFundsPanel'),
   countdown: document.getElementById('countdown'),
   noFundsRulesBtn: document.getElementById('noFundsRulesBtn'),
   themeBtn: document.getElementById('themeBtn'),
   soundBtn: document.getElementById('soundBtn'),
+  gesturesBtn: document.getElementById('gesturesBtn'),
+  gesturesValue: document.getElementById('gesturesValue'),
   themeColor: document.getElementById('themeColor'),
   installBtn: document.getElementById('installBtn'),
   menuBtn: document.getElementById('menuBtn'),
@@ -125,8 +141,10 @@ const state = {
   theme:
     storedPrefs.theme === 'light' || storedPrefs.theme === 'dark' ? storedPrefs.theme : 'auto',
   sound: typeof storedPrefs.sound === 'boolean' ? storedPrefs.sound : true,
+  gestures: typeof storedPrefs.gestures === 'boolean' ? storedPrefs.gestures : true,
   table: null,
   busy: false,
+  skipping: false,
   botTimer: 0,
   raiseOpen: false,
   raiseTarget: 0,
@@ -149,6 +167,7 @@ function savePrefs() {
     ...current,
     theme: state.theme,
     sound: state.sound,
+    gestures: state.gestures,
     game: 'poker',
   });
 }
@@ -202,6 +221,14 @@ function applySound() {
   els.soundBtn.setAttribute('aria-pressed', String(state.sound));
   els.soundBtn.setAttribute('aria-label', state.sound ? 'Silenciar sonidos' : 'Activar sonidos');
   sound.setMuted(!state.sound);
+}
+
+function applyGestures() {
+  document.documentElement.dataset.gestures = state.gestures ? 'on' : 'off';
+  if (!els.gesturesBtn) return;
+  els.gesturesBtn.setAttribute('aria-checked', String(state.gestures));
+  els.gesturesBtn.classList.toggle('is-on', state.gestures);
+  els.gesturesValue.textContent = state.gestures ? 'Activados' : 'Desactivados';
 }
 
 darkQuery.addEventListener('change', () => {
@@ -489,6 +516,55 @@ function scheduleBots() {
   }, delay);
 }
 
+/**
+ * Adelanta la mano hasta el final cuando ya te retiraste.
+ * Corre a los bots sin animaciones ni sonidos por acción y liquida una sola vez.
+ */
+function skipToEnd() {
+  const table = state.table;
+  if (!table || table.settled || state.skipping) return false;
+  if (!table.players[0] || !table.players[0].folded) return false;
+
+  state.skipping = true;
+  clearTimeout(state.botTimer);
+  state.botTimer = 0;
+  state.busy = false;
+
+  let guard = 0;
+  try {
+    while (!table.settled && guard < MAX_SKIP_ACTIONS) {
+      guard += 1;
+      if (table.turn === null) {
+        advanceTable(table);
+        continue;
+      }
+      const index = table.turn;
+      if (index === 0) break;
+      const action = botAction(table, index, {
+        profile: BOT_PROFILES[(index - 1) % BOT_PROFILES.length],
+        sims: 140,
+      });
+      let result = applyAction(table, index, action);
+      if (!result.ok) result = applyAction(table, index, { type: 'fold' });
+      if (!result.ok) break;
+      advanceTable(table);
+    }
+  } finally {
+    state.skipping = false;
+  }
+
+  if (!table.settled) {
+    saveTable();
+    scheduleBots();
+    return false;
+  }
+
+  applySettlement();
+  saveTable();
+  render();
+  return true;
+}
+
 /* ---------- Render ---------- */
 
 function resultInfo() {
@@ -644,6 +720,14 @@ function renderStatus() {
     return;
   }
 
+  if (table.players[0].folded) {
+    els.status.textContent = state.gestures
+      ? 'Te retiraste · doble toque para ver el final'
+      : 'Te retiraste · tocá «Ver el final»';
+    els.status.dataset.tone = 'neutral';
+    return;
+  }
+
   if (table.turn === 0) {
     const legal = legalActions(table, 0);
     if (!legal) {
@@ -670,9 +754,12 @@ function renderStatus() {
 function renderControls() {
   const table = state.table;
   const canAct = Boolean(table && !table.settled && table.turn === 0 && !state.busy);
+  const folded = Boolean(table && !table.settled && table.players[0].folded);
   const legal = canAct ? legalActions(table, 0) : null;
   const options = canAct ? raiseOptions(table, 0) : null;
 
+  els.skipPanel.hidden = !folded;
+  els.skipBtn.disabled = state.skipping;
   els.foldBtn.disabled = !canAct;
   els.callBtn.disabled = !canAct;
   els.raiseBtn.disabled = !canAct || !options;
@@ -687,7 +774,7 @@ function renderControls() {
   }
 
   if (!canAct || !options) state.raiseOpen = false;
-  els.actionRow.hidden = canAct && state.raiseOpen;
+  els.actionRow.hidden = folded || (canAct && state.raiseOpen);
   els.raisePanel.hidden = !canAct || !state.raiseOpen;
   if (!els.raisePanel.hidden) renderRaise(options);
 }
@@ -767,6 +854,20 @@ function adjustRaise(steps, { silent = false } = {}) {
   state.raiseTarget = next;
   if (!silent) sound.play('tick');
   paintRaise(options);
+}
+
+function openRaise() {
+  const options = currentRaiseOptions();
+  if (!options) return false;
+  state.raiseOpen = true;
+  state.raiseTarget = options.raise.min;
+  sound.play('tick');
+  renderControls();
+  requestAnimationFrame(() => {
+    if (els.raisePanel.hidden) return;
+    els.raisePanel.scrollIntoView({ block: 'nearest' });
+  });
+  return true;
 }
 
 function closeRaise() {
@@ -949,18 +1050,8 @@ els.callBtn.addEventListener('click', () => {
   if (!legal) return;
   actAsPlayer({ type: legal.toCall > 0 ? 'call' : 'check' });
 });
-els.raiseBtn.addEventListener('click', () => {
-  const options = currentRaiseOptions();
-  if (!options) return;
-  state.raiseOpen = true;
-  state.raiseTarget = options.raise.min;
-  sound.play('tick');
-  renderControls();
-  requestAnimationFrame(() => {
-    if (els.raisePanel.hidden) return;
-    els.raisePanel.scrollIntoView({ block: 'nearest' });
-  });
-});
+els.raiseBtn.addEventListener('click', openRaise);
+els.skipBtn.addEventListener('click', skipToEnd);
 
 els.raisePresets.addEventListener('click', (event) => {
   const button = event.target.closest('.poker-raise__preset');
@@ -1035,6 +1126,188 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) stopStepHold();
 });
 
+/* ---------- Gestos de la mesa ---------- */
+
+let activeGesture = null;
+let lastTap = { t: 0, x: 0, y: 0 };
+let gestureHint = '';
+
+function gesturesEnabled() {
+  return state.gestures && els.sheet.hidden && !document.body.classList.contains('has-sheet');
+}
+
+function gestureHintText(kind) {
+  if (kind === 'fold' || kind === 'fold-hint') return '← Retirarte';
+  if (kind === 'call') {
+    const table = state.table;
+    const legal = table ? legalActions(table, 0) : null;
+    if (!legal) return '→ Igualar';
+    return legal.toCall > 0 ? `→ Igualar ${money(legal.call)}` : '→ Pasar';
+  }
+  return '';
+}
+
+function setGestureHint(kind) {
+  if (kind === gestureHint) return;
+  gestureHint = kind;
+  if (!kind) {
+    renderStatus();
+    return;
+  }
+  els.status.textContent = gestureHintText(kind);
+  els.status.dataset.tone = 'neutral';
+}
+
+function clearGesture() {
+  if (!activeGesture) return;
+  const { id } = activeGesture;
+  activeGesture = null;
+  try {
+    els.pokerTable.releasePointerCapture(id);
+  } catch {
+    /* ya no estaba capturado */
+  }
+  setGestureHint('');
+}
+
+function gestureMode() {
+  const table = state.table;
+  if (!table || table.settled) return '';
+  if (table.players[0].folded) return 'skip';
+  if (state.busy || state.raiseOpen) return '';
+  if (table.turn !== 0) return '';
+  if (!legalActions(table, 0)) return '';
+  return 'act';
+}
+
+function onPokerPointerDown(event) {
+  if (!gesturesEnabled()) return;
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  if (event.isPrimary === false) return;
+
+  // Si un gesto anterior quedó colgado, no frena la mesa.
+  if (activeGesture) clearGesture();
+
+  const x = event.clientX;
+  const y = event.clientY;
+  // Deja libre el borde: ahí el sistema usa el gesto de atrás.
+  if (x < GESTURE_EDGE || x > window.innerWidth - GESTURE_EDGE) return;
+  if (y < GESTURE_EDGE || y > window.innerHeight - GESTURE_EDGE) return;
+
+  const mode = gestureMode();
+  if (!mode) return;
+
+  const now = performance.now();
+  const near = Math.hypot(x - lastTap.x, y - lastTap.y) < DOUBLE_TAP_DIST;
+  const doubleTap = lastTap.t > 0 && now - lastTap.t < DOUBLE_TAP_MS && near;
+
+  activeGesture = {
+    id: event.pointerId,
+    x0: x,
+    y0: y,
+    t0: now,
+    mode,
+    doubleTap,
+    direction: '',
+  };
+
+  try {
+    els.pokerTable.setPointerCapture(event.pointerId);
+  } catch {
+    /* algunos navegadores no lo permiten */
+  }
+}
+
+function onPokerPointerMove(event) {
+  const gesture = activeGesture;
+  if (!gesture || event.pointerId !== gesture.id || gesture.mode !== 'act') return;
+
+  const dx = event.clientX - gesture.x0;
+  const dy = event.clientY - gesture.y0;
+  const adx = Math.abs(dx);
+  const ady = Math.abs(dy);
+  if (adx < 8 && ady < 8) return;
+
+  let kind = '';
+  if (adx > ady * 1.15) {
+    if (dx >= SWIPE_CALL_MIN) kind = 'call';
+    else if (dx <= -SWIPE_FOLD_MIN) kind = 'fold';
+    else if (dx <= -SWIPE_FOLD_HINT) kind = 'fold-hint';
+  }
+  if (kind === gesture.direction) return;
+  gesture.direction = kind;
+  setGestureHint(kind);
+}
+
+function onPokerPointerUp(event) {
+  const gesture = activeGesture;
+  if (!gesture || event.pointerId !== gesture.id) return;
+
+  activeGesture = null;
+  try {
+    els.pokerTable.releasePointerCapture(event.pointerId);
+  } catch {
+    /* ya no estaba capturado */
+  }
+  setGestureHint('');
+
+  const dx = event.clientX - gesture.x0;
+  const dy = event.clientY - gesture.y0;
+  const adx = Math.abs(dx);
+  const ady = Math.abs(dy);
+  const elapsed = performance.now() - gesture.t0;
+
+  if (adx < 12 && ady < 12) {
+    if (elapsed > TAP_MAX_MS) {
+      lastTap = { t: 0, x: 0, y: 0 };
+      return;
+    }
+    if (gesture.doubleTap) {
+      lastTap = { t: 0, x: 0, y: 0 };
+      if (gesture.mode === 'skip') skipToEnd();
+      else if (gesture.mode === 'act' && !openRaise()) {
+        toast('En esta mano no podés subir');
+      }
+    } else {
+      lastTap = { t: performance.now(), x: gesture.x0, y: gesture.y0 };
+    }
+    return;
+  }
+
+  // Un arrastre no cuenta como toque.
+  lastTap = { t: 0, x: 0, y: 0 };
+  if (gesture.mode !== 'act' || elapsed > SWIPE_MAX_MS) return;
+
+  if (gesture.direction === 'call') {
+    const table = state.table;
+    const legal = table ? legalActions(table, 0) : null;
+    if (!legal) return;
+    actAsPlayer({ type: legal.toCall > 0 ? 'call' : 'check' });
+  } else if (gesture.direction === 'fold') {
+    actAsPlayer({ type: 'fold' });
+  } else if (gesture.direction === 'fold-hint') {
+    toast('Deslizá un poco más a la izquierda para retirarte');
+  }
+}
+
+function onPokerPointerCancel(event) {
+  if (!activeGesture || event.pointerId !== activeGesture.id) return;
+  activeGesture = null;
+  lastTap = { t: 0, x: 0, y: 0 };
+  setGestureHint('');
+}
+
+els.pokerTable.addEventListener('pointerdown', onPokerPointerDown);
+els.pokerTable.addEventListener('pointermove', onPokerPointerMove);
+els.pokerTable.addEventListener('pointerup', onPokerPointerUp);
+els.pokerTable.addEventListener('pointercancel', onPokerPointerCancel);
+els.pokerTable.addEventListener('lostpointercapture', (event) => {
+  if (!activeGesture || activeGesture.id !== event.pointerId) return;
+  activeGesture = null;
+  setGestureHint('');
+});
+els.pokerTable.addEventListener('contextmenu', (event) => event.preventDefault());
+
 els.themeBtn.addEventListener('click', () => {
   state.theme = resolvedTheme() === 'dark' ? 'light' : 'dark';
   applyTheme();
@@ -1047,6 +1320,16 @@ els.soundBtn.addEventListener('click', () => {
   savePrefs();
   if (state.sound) sound.play('toggle');
 });
+
+if (els.gesturesBtn) {
+  els.gesturesBtn.addEventListener('click', () => {
+    state.gestures = !state.gestures;
+    applyGestures();
+    savePrefs();
+    if (state.sound) sound.play('toggle');
+    renderStatus();
+  });
+}
 
 els.menuBtn.addEventListener('click', () => openSheet());
 els.sheetClose.addEventListener('click', closeSheet);
@@ -1101,6 +1384,7 @@ setInterval(() => {
 
 applyTheme();
 applySound();
+applyGestures();
 buildBoard();
 unlockSoundOnGesture();
 savePrefs();

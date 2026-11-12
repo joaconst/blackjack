@@ -4,6 +4,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.2] — 2026-11-12
+
+### Agregado
+- **Gestos de póker** sobre la mesa: deslizar a la **derecha** iguala o pasa; a la
+  **izquierda** (90 px) te retira, con aviso a los 45 px; **doble toque** abre la
+  subida.
+- Después de retirarte, **doble toque** en la mesa salta al final de la mano y
+  muestra al ganador. También queda el botón **Ver el final**.
+- Interruptor de **Gestos** en Ajustes del póker, compartido con el blackjack.
+
+### Cambiado
+- `APP_VERSION = 'v2.2'`, `CACHE = 'blackjack-v2.2'`.
+- La mesa usa `touch-action: pan-y` para que los gestos horizontales no rompan el
+  scroll vertical.
+
 ## [v2.1] — 2026-11-12
 
 ### Mejorado

@@ -89,6 +89,21 @@ el mismo stack por mano: el menor entre tu saldo y **$300**.
   reanuda donde estaba. El saldo no cambia hasta que la mano termina.
 - No se puede cambiar de juego con una mano en curso.
 
+### Gestos del póker
+
+Los gestos son un atajo opcional; los botones siguen siendo la vía principal y
+accesible. Se pueden apagar en **Ajustes → Gestos** y la elección se comparte con
+el blackjack.
+
+- **Tu turno:** deslizá hacia la **derecha** para igualar o pasar; hacia la
+  **izquierda** (90 px) para retirarte, con el aviso a los 45 px; **doble toque**
+  para abrir el panel de subida.
+- **Ya retirado:** **doble toque** en la mesa para saltar al final y ver al
+  ganador. También está el botón **Ver el final**.
+- Empezá el gesto lejos del borde (unos 28 px) para no chocar con el gesto de
+  atrás del teléfono. Los gestos son horizontales para no competir con el scroll.
+- El all in sigue en el panel de subida, con confirmación.
+
 ### Saldo diario
 
 Una vez por día, si tu saldo queda por debajo de **$500**, se completa hasta $500.
@@ -129,7 +144,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.1`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.2`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 
@@ -148,6 +163,8 @@ Los tests de póker cubren el evaluador de 7 cartas con desempates, ciegas y
 turnos, subidas mínimas, montos y presets de subida, cierre de calles, retiro,
 botes laterales, devolución de apuestas no igualadas, empates, equidad por Monte
 Carlo y una simulación de 25 manos que verifica que las fichas se conserven.
+Los gestos de la mesa y el salto al final se prueban aparte con Playwright y
+toque real simulado.
 
 ## Estructura
 
