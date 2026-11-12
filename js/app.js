@@ -28,7 +28,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const LEGACY_KEY = 'blackjack.state.v1';
-const APP_VERSION = 'v1.0';
+const APP_VERSION = 'v1.1';
 const money = formatMoney;
 let resetting = false;
 
@@ -573,6 +573,8 @@ function renderPlayerHands() {
     score.textContent = hand.cards.length ? String(value) : '\u2014';
     score.classList.toggle('is-bust', value > 21);
     score.classList.toggle('is-blackjack', hand.natural && !hand.settled);
+    score.classList.toggle('is-win', hand.settled && hand.result === 'win');
+    score.classList.toggle('is-lose', hand.settled && hand.result === 'lose');
 
     renderCards(node.querySelector('.hand__cards'), hand.cards, false);
   });

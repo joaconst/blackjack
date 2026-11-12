@@ -350,16 +350,17 @@ button {
   opacity: 0.52;
 }
 
-.hand.is-win {
+/* Las cajas de resultado solo tienen sentido con manos divididas. */
+.player-hands.is-multi .hand.is-win {
   border-color: var(--accent-glow);
   background: var(--accent-soft);
 }
 
-.hand.is-lose {
+.player-hands.is-multi .hand.is-lose {
   border-color: var(--danger-line);
 }
 
-.hand.is-push {
+.player-hands.is-multi .hand.is-push {
   border-color: var(--line-strong);
 }
 
@@ -397,6 +398,17 @@ button {
   border-color: var(--accent-glow);
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.score.is-win {
+  border-color: var(--accent-glow);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.score.is-lose {
+  border-color: var(--danger-line);
+  color: var(--lose);
 }
 
 .hand__cards {

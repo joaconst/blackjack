@@ -102,7 +102,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v1.0`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v1.1`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 
@@ -180,7 +180,7 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (por ejemplo `blackjack-v1.0` → `blackjack-v1.1`) y `APP_VERSION` en
+  `sw.js` (por ejemplo `blackjack-v1.1` → `blackjack-v1.2`) y `APP_VERSION` en
   `js/app.js` para que se actualice el cache y la versión que se muestra en
   Ajustes.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
