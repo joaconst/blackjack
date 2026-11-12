@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Póker · Mesa</title>
+  <meta name="description" content="Texas Hold'em contra bots, con fichas virtuales. Sin dinero real.">
+  <meta name="theme-color" content="#f6f5f0" id="themeColor">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mesa">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <script>
+    (function () {
+      try {
+        var prefs = JSON.parse(localStorage.getItem('blackjack.prefs.v1') || 'null') || {};
+        var pref = prefs.theme;
+        var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = pref === 'light' || pref === 'dark' ? pref : (dark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+        var meta = document.getElementById('themeColor');
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f1210' : '#f6f5f0');
+      } catch (e) {}
+    })();
+  </script>
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/cards.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/poker.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">&#9827;</span>
+        <span class="brand__name">Póker</span>
+      </div>
+      <div class="topbar__actions">
+        <button type="button" class="icon-btn" id="installBtn" aria-label="Instalar aplicación" hidden>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 19h14"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn" id="soundBtn" aria-label="Silenciar sonidos" aria-pressed="true">
+          <svg class="icon-sound-on" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/>
+            <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+            <path d="M18.5 6a9 9 0 0 1 0 12"/>
+          </svg>
+          <svg class="icon-sound-off" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/>
+            <path d="m16 9.5 4 5M20 9.5l-4 5"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn" id="themeBtn" aria-label="Cambiar a tema oscuro">
+          <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn" id="menuBtn" aria-label="Menú y ajustes" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="wallet" aria-label="Saldo">
+      <div class="wallet__group">
+        <span class="wallet__label">Saldo</span>
+        <strong class="wallet__amount" id="balance">$1.000</strong>
+      </div>
+      <span class="wallet__tag">Fichas virtuales</span>
+    </section>
+
+    <main class="poker" aria-label="Mesa de póker">
+      <div class="poker__table" id="pokerTable">
+        <div class="poker__seats" id="seats" aria-label="Jugadores"></div>
+
+        <div class="poker__center">
+          <div class="poker__pot"><span>Pozo</span><strong id="pot">$0</strong></div>
+          <div class="community" id="community" aria-label="Cartas comunitarias"></div>
+          <p class="poker__status" id="status" role="status" aria-live="polite">Ciegas $5/$10</p>
+        </div>
+
+        <div class="poker__you" id="youSeat">
+          <div class="poker__you-info">
+            <span class="poker__you-name" id="youName">Vos</span>
+            <span class="poker__you-stack" id="youStack">$300</span>
+            <span class="poker__you-bet" id="youBet"></span>
+          </div>
+          <div class="hole" id="youCards" aria-label="Tus cartas"></div>
+        </div>
+      </div>
+
+      <div class="poker-result" id="result" hidden>
+        <div class="poker-result__text">
+          <strong id="resultTitle">Mano terminada</strong>
+          <span id="resultText"></span>
+        </div>
+        <span class="poker-result__net" id="resultNet"></span>
+      </div>
+    </main>
+
+    <footer class="controls">
+      <div class="panel" id="startPanel">
+        <div class="poker-meta">
+          <div>
+            <span class="bet__label">Mesa</span>
+            <strong class="bet__amount bet__amount--sm" id="tableInfo">$300</strong>
+          </div>
+          <div>
+            <span class="bet__label">Ciegas</span>
+            <strong class="bet__amount bet__amount--sm">$5/$10</strong>
+          </div>
+        </div>
+        <p class="poker-note" id="startNote">Vos contra 3 bots · Texas Hold'em</p>
+        <button type="button" class="btn btn--primary" id="startBtn">Repartir mano</button>
+      </div>
+
+      <div class="panel" id="actionPanel" hidden>
+        <div class="poker-actions">
+          <button type="button" class="btn btn--danger" id="foldBtn">Retirarse</button>
+          <button type="button" class="btn btn--soft" id="callBtn">Pasar</button>
+          <button type="button" class="btn btn--primary" id="raiseBtn">Subir</button>
+        </div>
+        <div class="poker-raise" id="raisePanel" hidden>
+          <div class="poker-raise__presets" id="raisePresets" role="group" aria-label="Tamaño de la subida"></div>
+          <div class="poker-raise__foot">
+            <span class="poker-raise__value" id="raiseAmount">$0</span>
+            <button type="button" class="btn btn--primary" id="raiseConfirm">Subir</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel panel--empty" id="noFundsPanel" hidden>
+        <p class="empty__title">Sin fichas por hoy</p>
+        <p class="empty__text">Mañana volvés a tener $500. Faltan</p>
+        <p class="empty__timer" id="countdown">00:00:00</p>
+        <button type="button" class="link-btn" id="noFundsRulesBtn">Cómo funciona el saldo</button>
+      </div>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet__backdrop" data-close></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="sheetTitle">Ajustes</h2>
+        <button type="button" class="icon-btn" id="sheetClose" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sheet__body">
+        <section class="sheet__section">
+          <h3>Cómo se juega</h3>
+          <ul class="poker-rules">
+            <li><strong>Texas Hold'em</strong> con 3 bots. Recibís dos cartas y hay cinco comunitarias.</li>
+            <li>Ciegas de <strong>$5/$10</strong>. Podés retirarte, pasar, igualar o subir en cada ronda.</li>
+            <li>Ganás con la mejor mano de cinco cartas o si todos los demás se retiran.</li>
+            <li>En la mesa todos arrancan con el mismo stack: el menor entre tu saldo y $300.</li>
+            <li>Al terminar la mano, lo que ganaste o perdiste se suma a tu saldo.</li>
+            <li>Si recargás en medio de una mano, la mesa se reanuda donde estaba.</li>
+          </ul>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Juego</h3>
+          <p class="sheet__text">Estás jugando al póker. El saldo es el mismo que en el blackjack.</p>
+          <button type="button" class="btn btn--soft" id="switchGameBtn">Jugar al blackjack</button>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Tu saldo</h3>
+          <p class="sheet__text">Empezás con $1.000. Una vez por día, si tu saldo queda por debajo de $500, lo completamos hasta $500.</p>
+          <p class="sheet__text">Son fichas de fantasía. Acá no se juega dinero real.</p>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Instalar en el teléfono</h3>
+          <p class="sheet__text" id="installStatus">Agregala a la pantalla de inicio para usarla como una app.</p>
+          <ol class="steps" id="installSteps" hidden></ol>
+          <button type="button" class="btn btn--soft" id="sheetInstallBtn" hidden>Instalar aplicación</button>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Progreso</h3>
+          <button type="button" class="btn btn--danger" id="resetBtn">Reiniciar saldo y empezar de cero</button>
+          <div class="confirm" id="resetConfirm" hidden>
+            <p class="confirm__text">Se borran el saldo y la mesa de póker. Tus ajustes, el tema y el sonido se mantienen.</p>
+            <div class="confirm__actions">
+              <button type="button" class="btn btn--soft" id="resetCancel">Cancelar</button>
+              <button type="button" class="btn btn--danger" id="resetGo">Sí, reiniciar</button>
+            </div>
+          </div>
+        </section>
+
+        <p class="sheet__foot">Mesa · fichas virtuales · <span id="appVersion">—</span></p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/poker.js"></script>
+</body>
+</html>

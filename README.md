@@ -1,9 +1,16 @@
-# Blackjack
+# Mesa
 
-Blackjack mobile con fichas virtuales. Sin frameworks ni build: HTML, CSS y JS puro.
-Se puede instalar como app en el celular (PWA) y funciona offline.
+Blackjack y póker mobile con fichas virtuales. Sin frameworks ni build: HTML,
+CSS y JS puro. Se puede instalar como app en el celular (PWA) y funciona offline.
 
-## Cómo jugar
+## Elegir juego
+
+La primera vez la app pregunta si querés jugar al **Blackjack** o al **Póker**.
+La elección queda guardada y se puede cambiar en **Ajustes → Juego** (o desde la
+hoja de ajustes del póker). Los dos juegos comparten el mismo saldo y el mismo
+bono diario.
+
+## Blackjack
 
 - Empezás con **$1.000**.
 - Apostás **solo tocando fichas**, sin teclado numérico. Apuesta mínima: $5 y
@@ -62,17 +69,35 @@ En **Ajustes → Modo beta** se pueden agregar fichas tocando denominaciones, si
 teclado. Es temporal, para probar apuestas grandes, y lo agregado se guarda junto
 con el saldo. Tiene Deshacer, Limpiar y confirmación con el total en vivo.
 
+## Póker
+
+Texas Hold'em contra **3 bots** (Ana, Beto y Caro). Vos y los bots arrancan con
+el mismo stack por mano: el menor entre tu saldo y **$300**.
+
+- Ciegas de **$5/$10** y una sola mano por vez. La mesa no cobra rake.
+- Recibís dos cartas propias y hay cinco comunitarias: flop, turn y river.
+- En cada ronda podés **retirarte**, **pasar/igualar**, **subir** o ir **all in**.
+  Las subidas se eligen con presets (mínima, medio pozo, pozo completo y all in).
+- Ganás con la mejor mano de cinco cartas o si todos los demás se retiran. Hay
+  botes laterales cuando hay all-ins de distinto tamaño.
+- Al terminar la mano, el neto (`stack final − stack inicial`) se suma o se resta
+  al saldo compartido. Mientras jugás, el saldo muestra solo lo que no está
+  comprometido en la mesa.
+- La mesa se guarda: si recargás o volvés más tarde en medio de una mano, se
+  reanuda donde estaba. El saldo no cambia hasta que la mano termina.
+- No se puede cambiar de juego con una mano en curso.
+
 ### Saldo diario
 
 Una vez por día, si tu saldo queda por debajo de **$500**, se completa hasta $500.
 Si tenés $500 o más, no se agrega nada. Si te quedás sin saldo después de usar
 el bono del día, la pantalla de espera muestra cuánto falta para la medianoche.
 
-El progreso (`saldo`, `apuesta`, bono diario y última apuesta) se guarda aparte de
-las preferencias (`tema`, `sonido`, `gestos` y si ya viste la ayuda). Reiniciar el
-progreso borra solo lo primero: el tema y los ajustes se mantienen. La clave vieja
-`blackjack.state.v1` se migra automáticamente a `blackjack.progress.v1` y
-`blackjack.prefs.v1`.
+El progreso (saldo, apuesta, bono diario y última apuesta) se guarda aparte de
+las preferencias (tema, sonido, gestos, juego elegido y si ya viste la ayuda).
+Reiniciar el progreso borra solo lo primero: el tema, el sonido y los ajustes se
+mantienen. La clave vieja `blackjack.state.v1` se migra automáticamente
+a `blackjack.progress.v1` y `blackjack.prefs.v1`.
 
 ## Correrlo local
 
@@ -102,7 +127,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v1.1`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.0`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 
@@ -117,20 +142,31 @@ split (mismo valor, hasta 4 manos, ases y 21 post-split), liquidación por mano,
 doble, mazo, lógica del saldo diario y la pila de fichas (suma exacta, máximo de
 7 fichas y denominaciones disponibles según el saldo).
 
+Los tests de póker cubren el evaluador de 7 cartas con desempates, ciegas y
+turnos, subidas mínimas, cierre de calles, retiro, botes laterales, devolución de
+apuestas no igualadas, empates, equidad por Monte Carlo y una simulación de 25
+manos que verifica que las fichas se conserven.
+
 ## Estructura
 
 ```
-index.html
-css/tokens.css     colores, tipografía y medidas globales
-css/styles.css     layout, mesa, controles, hojas y animaciones
-css/cards.css      aspecto de cartas y fichas (el "skin")
-js/engine.js       reglas, cálculos y armado de la pila, sin DOM
-js/sound.js        sonidos sintetizados con Web Audio
-js/app.js          interfaz, estado, persistencia e instalación
+index.html             blackjack y selector de juego
+poker.html             mesa de póker
+css/tokens.css         colores, tipografía y medidas globales
+css/styles.css         layout, mesa, controles, hojas y animaciones
+css/cards.css          aspecto de cartas y fichas (el "skin")
+css/chooser.css        selector de juego
+css/poker.css          mesa, asientos y acciones de póker
+js/engine.js           reglas, cálculos y armado de la pila, sin DOM
+js/poker-engine.js     evaluador, apuestas, botes laterales y bots, sin DOM
+js/sound.js            sonidos sintetizados con Web Audio
+js/app.js              interfaz del blackjack, estado, persistencia e instalación
+js/poker.js            interfaz del póker, turnos, bots y saldo compartido
 manifest.webmanifest
-sw.js              cache offline
+sw.js                  cache offline
 icons/
 tests/engine.test.js
+tests/poker.test.js
 ```
 
 ## Cambiar el estilo de cartas y fichas
@@ -180,11 +216,15 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (por ejemplo `blackjack-v1.1` → `blackjack-v1.2`) y `APP_VERSION` en
-  `js/app.js` para que se actualice el cache y la versión que se muestra en
-  Ajustes.
+  `sw.js` (por ejemplo `blackjack-v2.0` → `blackjack-v2.1`) y `APP_VERSION` en
+  `js/app.js` y `js/poker.js` para que se actualice el cache y la versión que se
+  muestra en Ajustes.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
-  saldo, apuesta y mesa; conserva tema, sonido y gestos.
+  saldo, apuesta, mesa de blackjack y mesa de póker; conserva tema, sonido y
+  gestos.
+- El saldo es uno solo para los dos juegos y el bono diario también. En póker, el
+  saldo visible durante una mano descuenta lo comprometido en la mesa; el neto
+  se aplica al terminar.
 - El botón de tema arranca siguiendo al sistema; una vez que lo tocás, queda
   guardada tu elección.
 - La apuesta se guarda en múltiplos de $5; **All in** permite saldos que no son

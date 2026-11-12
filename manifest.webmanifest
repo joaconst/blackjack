@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Blackjack",
-  "short_name": "Blackjack",
-  "description": "Blackjack para jugar desde el celular. Fichas virtuales, sin dinero real.",
+  "name": "Mesa",
+  "short_name": "Mesa",
+  "description": "Blackjack y póker para jugar desde el celular. Fichas virtuales, sin dinero real.",
   "lang": "es-AR",
   "dir": "ltr",
   "start_url": "./",
@@ -35,9 +35,14 @@
   ],
   "shortcuts": [
     {
-      "name": "Jugar una mano",
-      "short_name": "Jugar",
-      "url": "./"
+      "name": "Blackjack",
+      "short_name": "Blackjack",
+      "url": "./index.html"
+    },
+    {
+      "name": "Póker",
+      "short_name": "Póker",
+      "url": "./poker.html"
     }
   ]
 }

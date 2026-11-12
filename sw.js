@@ -1,15 +1,20 @@
-const CACHE = 'blackjack-v1.1';
+const CACHE = 'blackjack-v2.0';
 
 const ASSETS = [
   './',
   './index.html',
+  './poker.html',
   './manifest.webmanifest',
   './css/tokens.css',
   './css/cards.css',
   './css/styles.css',
+  './css/chooser.css',
+  './css/poker.css',
   './js/engine.js',
+  './js/poker-engine.js',
   './js/sound.js',
   './js/app.js',
+  './js/poker.js',
   './icons/favicon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -42,6 +47,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
+    const fallback = url.pathname.endsWith('poker.html') ? './poker.html' : './index.html';
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -49,7 +55,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('./index.html'))),
+        .catch(() => caches.match(request).then((cached) => cached || caches.match(fallback))),
     );
     return;
   }

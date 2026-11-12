@@ -4,6 +4,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.0] — 2026-11-11
+
+### Agregado
+- **Póker Texas Hold'em** contra 3 bots en `poker.html`, con ciegas $5/$10,
+  subidas por presets, all-in, botes laterales y showdown con la mejor mano de
+  cinco cartas.
+- **Selector de juego** al primer arranque: Blackjack o Póker. La elección se
+  guarda y se puede cambiar desde **Ajustes → Juego**; también bloquea el cambio
+  en medio de una mano.
+- **Saldo compartido** entre los dos juegos, con el mismo bono diario.
+- La mesa de póker se guarda y se reanuda si recargás en medio de una mano; el
+  saldo recién se ajusta al terminar.
+- La app pasa a llamarse **Mesa** en el manifest, con atajos a cada juego.
+
+### Cambiado
+- `APP_VERSION = 'v2.0'`, `CACHE = 'blackjack-v2.0'`.
+- 24 tests nuevos del motor de póker (`tests/poker.test.js`); `npm test` suma 52.
+
 ## [v1.1] — 2026-11-11
 
 ### Corregido

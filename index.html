@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>Blackjack</title>
-  <meta name="description" content="Blackjack para jugar desde el celular. Fichas virtuales, sin dinero real.">
+  <title>Blackjack · Mesa</title>
+  <meta name="description" content="Blackjack y póker para jugar desde el celular. Fichas virtuales, sin dinero real.">
   <meta name="theme-color" content="#f6f5f0" id="themeColor">
   <meta name="color-scheme" content="light dark">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Blackjack">
+  <meta name="apple-mobile-web-app-title" content="Mesa">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
   <link rel="manifest" href="manifest.webmanifest">
@@ -22,6 +22,10 @@
         var prefs = JSON.parse(localStorage.getItem('blackjack.prefs.v1') || 'null');
         if (!prefs) {
           prefs = JSON.parse(localStorage.getItem('blackjack.state.v1') || '{}');
+        }
+        if (prefs && prefs.game === 'poker') {
+          location.replace('poker.html');
+          return;
         }
         var pref = prefs && prefs.theme;
         var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -36,6 +40,7 @@
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/cards.css">
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/chooser.css">
 </head>
 <body>
   <div class="app">
@@ -155,6 +160,36 @@
     </footer>
   </div>
 
+  <div class="picker" id="gamePicker" hidden>
+    <div class="picker__panel" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+      <p class="picker__mark" aria-hidden="true">&#9824;</p>
+      <h1 class="picker__title" id="pickerTitle">Elegí tu juego</h1>
+      <p class="picker__text">Los dos comparten el mismo saldo. Podés cambiarlo cuando quieras desde Ajustes.</p>
+
+      <div class="picker__grid">
+        <button type="button" class="game-card" data-game="blackjack">
+          <span class="game-card__mark" aria-hidden="true">&#9824;</span>
+          <span class="game-card__body">
+            <span class="game-card__name">Blackjack</span>
+            <span class="game-card__text">Llegá a 21 sin pasarte</span>
+            <span class="game-card__tag" data-tag hidden>Jugando ahora</span>
+          </span>
+        </button>
+
+        <button type="button" class="game-card" data-game="poker">
+          <span class="game-card__mark" aria-hidden="true">&#9827;</span>
+          <span class="game-card__body">
+            <span class="game-card__name">Póker</span>
+            <span class="game-card__text">Texas Hold'em contra 3 bots</span>
+            <span class="game-card__tag" data-tag hidden>Jugando ahora</span>
+          </span>
+        </button>
+      </div>
+
+      <button type="button" class="btn btn--soft picker__cancel" id="pickerCancel" hidden>Cancelar</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <div class="sheet" id="sheet" hidden>
@@ -220,6 +255,12 @@
           <h3>Modo beta <span class="tag">beta</span></h3>
           <p class="sheet__text">Agregá las fichas que quieras para probar apuestas grandes. Esto no va a estar en la versión final.</p>
           <button type="button" class="btn btn--soft" id="addFundsBtn">Agregar fichas</button>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Juego</h3>
+          <p class="sheet__text" id="gameStatus">Estás jugando al blackjack.</p>
+          <button type="button" class="btn btn--soft" id="changeGameBtn">Cambiar de juego</button>
         </section>
 
         <section class="sheet__section">

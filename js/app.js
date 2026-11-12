@@ -28,7 +28,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const LEGACY_KEY = 'blackjack.state.v1';
-const APP_VERSION = 'v1.1';
+const APP_VERSION = 'v2.0';
 const money = formatMoney;
 let resetting = false;
 
@@ -88,6 +88,10 @@ const els = {
   addUndo: document.getElementById('addUndo'),
   addClear: document.getElementById('addClear'),
   addConfirm: document.getElementById('addConfirm'),
+  gamePicker: document.getElementById('gamePicker'),
+  pickerCancel: document.getElementById('pickerCancel'),
+  changeGameBtn: document.getElementById('changeGameBtn'),
+  gameStatus: document.getElementById('gameStatus'),
 };
 
 /* ---------- Estado y persistencia ---------- */
@@ -124,6 +128,7 @@ function loadPrefs() {
     sound: typeof source.sound === 'boolean' ? source.sound : true,
     gestures: typeof source.gestures === 'boolean' ? source.gestures : true,
     seenGestureHint: source.seenGestureHint === true,
+    game: source.game === 'poker' || source.game === 'blackjack' ? source.game : '',
   };
 }
 
@@ -210,6 +215,7 @@ function savePrefs() {
     sound: state.sound,
     gestures: state.gestures,
     seenGestureHint: state.seenGestureHint,
+    game: state.game,
   });
 }
 
@@ -1620,6 +1626,56 @@ document.addEventListener(
   { passive: false },
 );
 
+/* ---------- Selector de juego ---------- */
+
+function handInProgress() {
+  return state.phase === 'dealing' || state.phase === 'player' || state.phase === 'dealer';
+}
+
+function openPicker(firstRun = false) {
+  if (!els.sheet.hidden) closeSheet();
+  els.gamePicker.hidden = false;
+  els.gamePicker.dataset.firstRun = firstRun ? '1' : '0';
+  els.pickerCancel.hidden = firstRun;
+  document.body.classList.add('has-sheet');
+
+  for (const card of els.gamePicker.querySelectorAll('.game-card')) {
+    const current = card.dataset.game === state.game;
+    card.classList.toggle('is-current', current);
+    const tag = card.querySelector('[data-tag]');
+    if (tag) tag.hidden = !current;
+  }
+
+  const first = els.gamePicker.querySelector('.game-card');
+  if (first) first.focus({ preventScroll: true });
+}
+
+function closePicker(force = false) {
+  if (!force && els.gamePicker.dataset.firstRun === '1') return;
+  els.gamePicker.hidden = true;
+  els.gamePicker.dataset.firstRun = '0';
+  document.body.classList.remove('has-sheet');
+}
+
+function chooseGame(game) {
+  if (game === 'poker') {
+    if (handInProgress()) {
+      toast('Terminá la mano para cambiar de juego');
+      return;
+    }
+    state.game = 'poker';
+    savePrefs();
+    location.href = 'poker.html';
+    return;
+  }
+
+  state.game = 'blackjack';
+  savePrefs();
+  closePicker(true);
+  if (els.gameStatus) els.gameStatus.textContent = 'Estás jugando al blackjack.';
+  toast('Jugando al blackjack');
+}
+
 /* ---------- Eventos ---------- */
 
 els.themeBtn.addEventListener('click', () => {
@@ -1685,6 +1741,13 @@ els.sheetInstallBtn.addEventListener('click', promptInstall);
 els.menuBtn.addEventListener('click', () => openSheet());
 els.sheetClose.addEventListener('click', closeSheet);
 els.noFundsRulesBtn.addEventListener('click', () => openSheet());
+els.changeGameBtn.addEventListener('click', () => openPicker(false));
+els.pickerCancel.addEventListener('click', () => closePicker());
+
+els.gamePicker.addEventListener('click', (event) => {
+  const card = event.target.closest('.game-card');
+  if (card) chooseGame(card.dataset.game);
+});
 
 els.sheet.addEventListener('click', (event) => {
   if (event.target.closest('[data-close]')) closeSheet();
@@ -1692,7 +1755,8 @@ els.sheet.addEventListener('click', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
-  if (!els.addSheet.hidden) closeAddSheet();
+  if (!els.gamePicker.hidden) closePicker();
+  else if (!els.addSheet.hidden) closeAddSheet();
   else if (!els.sheet.hidden) closeSheet();
 });
 
@@ -1723,12 +1787,17 @@ window.addEventListener('pagehide', save);
 
 /* ---------- Arranque ---------- */
 
+if (state.game === 'poker') location.replace('poker.html');
+
 applyTheme();
 applySound();
 applyGestures();
 buildAddChips();
 unlockSoundOnGesture();
 applyInitialState();
+
+if (els.gameStatus) els.gameStatus.textContent = 'Estás jugando al blackjack.';
+if (!state.game) openPicker(true);
 
 function applyInitialState() {
   if (state.bet > state.balance) state.bet = state.balance;
@@ -1746,6 +1815,7 @@ function applyInitialState() {
 
 function scheduleGestureHint() {
   if (!state.gestures || state.seenGestureHint || state.balance < MIN_BET) return;
+  if (els.gamePicker && !els.gamePicker.hidden) return;
   setTimeout(() => {
     if (!state.gestures) return;
     toast('Doble toque reparte · ← all in · ↓ limpiar');

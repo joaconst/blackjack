@@ -5,18 +5,23 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 
 ## Verificación pendiente
 
-- [ ] Probar la actualización real de la PWA en un iPhone: instalar v1.0, subir
-      a v1.1 y confirmar que Ajustes muestra la versión nueva tras cerrar y
+- [ ] Probar la actualización real de la PWA en un iPhone: instalar v1.1, subir
+      a v2.0 y confirmar que Ajustes muestra la versión nueva tras cerrar y
       abrir la app.
-- [ ] Revisar el contraste del badge `.score.is-win` / `.is-lose` y de las cajas
-      de split en **tema oscuro** (las capturas actuales son en claro).
+- [ ] Revisar el contraste del badge `.score.is-win` / `.is-lose`, de las cajas
+      de split y de la mesa de póker en **tema oscuro** (las capturas actuales
+      son en claro).
 - [ ] Repasar el resultado por mano en split con 3 y 4 manos en 320×568.
+- [ ] Probar una mano de póker completa en un teléfono real: turnos de los bots,
+      subida, all-in y reanudación al recargar.
 
 ## Ideas
 
-- [ ] Mover los scripts de Playwright (`run8.cjs`, `visual.cjs`,
-      `probe-touch*.cjs`) al repo en `tests/e2e/` para no depender de la carpeta
-      temporal, con un `npm run test:e2e` opcional.
+- [ ] Mover los scripts de Playwright (`run8.cjs`, `run-poker.cjs`,
+      `visual.cjs`, `probe-touch*.cjs`) al repo en `tests/e2e/` para no depender
+      de la carpeta temporal, con un `npm run test:e2e` opcional.
+- [ ] Evaluar una segunda variante de póker (por ejemplo, torneos cortos) o más
+      perfiles de bots.
 - [ ] Tests unitarios para las reglas de gestos (umbrales y dirección), hoy solo
       cubiertas por E2E.
 - [ ] Revisar accesibilidad: foco visible en botones de la mesa y etiquetas
