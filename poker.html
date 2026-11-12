@@ -130,15 +130,27 @@
       </div>
 
       <div class="panel" id="actionPanel" hidden>
-        <div class="poker-actions">
+        <div class="poker-actions" id="actionRow">
           <button type="button" class="btn btn--danger" id="foldBtn">Retirarse</button>
           <button type="button" class="btn btn--soft" id="callBtn">Pasar</button>
           <button type="button" class="btn btn--primary" id="raiseBtn">Subir</button>
         </div>
         <div class="poker-raise" id="raisePanel" hidden>
+          <div class="poker-raise__head">
+            <div>
+              <span class="poker-raise__label">Subir a</span>
+              <strong class="poker-raise__value" id="raiseAmount" aria-live="polite">$0</strong>
+            </div>
+            <p class="poker-raise__hint" id="raiseHint"></p>
+          </div>
           <div class="poker-raise__presets" id="raisePresets" role="group" aria-label="Tamaño de la subida"></div>
+          <div class="poker-raise__stepper">
+            <button type="button" class="poker-raise__step" id="raiseMinus" aria-label="Bajar la subida de a $5">−$5</button>
+            <span class="poker-raise__range" id="raiseRange">Mínima $0 · Máxima $0</span>
+            <button type="button" class="poker-raise__step" id="raisePlus" aria-label="Subir la subida de a $5">+$5</button>
+          </div>
           <div class="poker-raise__foot">
-            <span class="poker-raise__value" id="raiseAmount">$0</span>
+            <button type="button" class="btn btn--soft" id="raiseCancel">Cancelar</button>
             <button type="button" class="btn btn--primary" id="raiseConfirm">Subir</button>
           </div>
         </div>

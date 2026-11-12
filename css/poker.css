@@ -386,8 +386,45 @@
 .poker-raise {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
   padding-top: 2px;
+  animation: raise-in 0.18s ease both;
+}
+
+.poker-raise__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px;
+}
+
+.poker-raise__label {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.poker-raise__value {
+  display: block;
+  font-size: 22px;
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.poker-raise__hint {
+  max-width: 58%;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: right;
 }
 
 .poker-raise__presets {
@@ -396,19 +433,40 @@
 }
 
 .poker-raise__preset {
+  display: flex;
   flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
   min-width: 0;
-  min-height: 38px;
+  min-height: 44px;
   padding: 4px 2px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-2);
   color: var(--ink);
-  font-size: 11.5px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
   cursor: pointer;
   touch-action: manipulation;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.poker-raise__preset-label {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.poker-raise__preset-amount {
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
 }
 
 .poker-raise__preset.is-selected {
@@ -417,25 +475,89 @@
   color: var(--accent);
 }
 
-.poker-raise__foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.poker-raise__preset.is-selected .poker-raise__preset-label {
+  color: var(--accent);
 }
 
-.poker-raise__value {
+.poker-raise__preset[data-preset="allin"] .poker-raise__preset-amount {
+  color: var(--lose);
+}
+
+.poker-raise__preset[data-preset="allin"].is-selected {
+  border-color: var(--danger-line);
+  background: var(--danger-bg);
+  color: var(--lose);
+}
+
+.poker-raise__preset[data-preset="allin"].is-selected .poker-raise__preset-label {
+  color: var(--lose);
+}
+
+.poker-raise__stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.poker-raise__step {
   flex: 0 0 auto;
-  min-width: 70px;
-  padding-left: 2px;
-  font-size: 18px;
+  min-width: 50px;
+  min-height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 12px;
   font-weight: 750;
-  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.poker-raise__step:active {
+  border-color: var(--line-strong);
+  background: var(--surface-3);
+}
+
+.poker-raise__range {
+  flex: 1;
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
+.poker-raise__foot {
+  display: flex;
+  gap: 6px;
+}
+
 .poker-raise__foot .btn {
-  flex: 1;
   min-height: 46px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+#raiseCancel {
+  flex: 0 0 36%;
+}
+
+#raiseConfirm {
+  flex: 1;
+}
+
+@keyframes raise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---------- Ajustes específicos ---------- */
@@ -474,5 +596,45 @@
 
   .poker-actions .btn {
     font-size: 12.5px;
+  }
+
+  .poker-raise {
+    gap: 5px;
+  }
+
+  .poker-raise__value {
+    font-size: 20px;
+  }
+
+  .poker-raise__hint {
+    font-size: 10px;
+  }
+
+  .poker-raise__preset {
+    min-height: 42px;
+  }
+
+  .poker-raise__preset-label {
+    font-size: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .poker-raise__preset-amount {
+    font-size: 11px;
+  }
+
+  .poker-raise__step {
+    min-width: 44px;
+    min-height: 36px;
+    font-size: 11px;
+  }
+
+  .poker-raise__range {
+    font-size: 9px;
+  }
+
+  .poker-raise__foot .btn {
+    min-height: 44px;
+    font-size: 13px;
   }
 }

@@ -4,6 +4,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.1] — 2026-11-12
+
+### Mejorado
+- Panel de subida del póker más claro: muestra el total, cuánto igualás,
+  cuánto subís, la subida mínima y la máxima.
+- Presets con etiqueta y monto (**Mínima**, **½ pozo**, **Pozo**, **All in**),
+  redondeados a la ficha mínima y sin montos repetidos.
+- Ajuste fino con **−$5 / +$5**, con repetición acelerada al mantener presionado,
+  para elegir cualquier monto legal sin teclado.
+- **Cancelar** cierra el panel sin ejecutar la subida.
+- El **all-in** pide una confirmación extra y se muestra en rojo.
+- En pantallas de 320×568 el panel se desplaza solo para que el botón de
+  confirmar quede a la vista.
+
+### Cambiado
+- `APP_VERSION = 'v2.1'`, `CACHE = 'blackjack-v2.1'`.
+- 5 tests nuevos de montos de subida; `npm test` suma 57.
+
 ## [v2.0] — 2026-11-11
 
 ### Agregado

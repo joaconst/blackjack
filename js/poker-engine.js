@@ -316,6 +316,61 @@ export function legalActions(table, index) {
   };
 }
 
+/**
+ * Opciones de subida listas para la interfaz: rango legal y presets.
+ * Devuelve null si el jugador no puede subir en este momento.
+ */
+export function raiseOptions(table, index) {
+  const legal = legalActions(table, index);
+  if (!legal || !legal.raise) return null;
+
+  const { min, max } = legal.raise;
+  const quantum = Math.max(1, table.smallBlind || SB);
+  const roundTo = (value) => Math.round(value / quantum) * quantum;
+  const clamp = (value) => Math.max(min, Math.min(max, roundTo(value)));
+  const potAfterCall = table.pot + legal.toCall;
+
+  const candidates = [
+    { id: 'min', label: 'Mínima', amount: min },
+    { id: 'half', label: '½ pozo', amount: clamp(table.currentBet + potAfterCall * 0.5) },
+    { id: 'pot', label: 'Pozo', amount: clamp(table.currentBet + potAfterCall) },
+  ];
+
+  const seen = new Set();
+  const presets = [];
+  for (const preset of candidates) {
+    if (seen.has(preset.amount) || preset.amount >= max) continue;
+    seen.add(preset.amount);
+    presets.push(preset);
+  }
+  // El all-in siempre va último y gana si coincide con otro preset.
+  presets.push({ id: 'allin', label: 'All in', amount: max });
+
+  return {
+    ...legal,
+    potAfterCall,
+    presets,
+  };
+}
+
+/** Ajusta un monto al rango legal de subida. */
+export function clampRaiseTarget(table, index, value) {
+  const options = raiseOptions(table, index);
+  if (!options) return 0;
+  const target = Math.floor(Number(value) || 0);
+  return Math.max(options.raise.min, Math.min(options.raise.max, target));
+}
+
+/** Mueve el monto una cantidad de pasos de una ciega chica, sin salir del rango. */
+export function stepRaiseTarget(table, index, current, steps = 1) {
+  const options = raiseOptions(table, index);
+  if (!options) return 0;
+  const quantum = Math.max(1, table.smallBlind || SB);
+  const base = clampRaiseTarget(table, index, current);
+  const next = base + Math.floor(Number(steps) || 0) * quantum;
+  return Math.max(options.raise.min, Math.min(options.raise.max, next));
+}
+
 function reopenAction(table, raiserIndex) {
   table.players.forEach((player, index) => {
     if (index !== raiserIndex && !player.folded && !player.allIn) player.acted = false;

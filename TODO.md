@@ -5,8 +5,8 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 
 ## Verificación pendiente
 
-- [ ] Probar la actualización real de la PWA en un iPhone: instalar v1.1, subir
-      a v2.0 y confirmar que Ajustes muestra la versión nueva tras cerrar y
+- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.0, subir
+      a v2.1 y confirmar que Ajustes muestra la versión nueva tras cerrar y
       abrir la app.
 - [ ] Revisar el contraste del badge `.score.is-win` / `.is-lose`, de las cajas
       de split y de la mesa de póker en **tema oscuro** (las capturas actuales
@@ -22,6 +22,8 @@ Marcar con `[x]` al terminar y borrar lo descartado.
       de la carpeta temporal, con un `npm run test:e2e` opcional.
 - [ ] Evaluar una segunda variante de póker (por ejemplo, torneos cortos) o más
       perfiles de bots.
+- [ ] Agregar gestos de póker reutilizando `raiseOptions`, `clampRaiseTarget` y
+      `stepRaiseTarget` (por ejemplo, deslizar para subir o bajar el monto).
 - [ ] Tests unitarios para las reglas de gestos (umbrales y dirección), hoy solo
       cubiertas por E2E.
 - [ ] Revisar accesibilidad: foco visible en botones de la mesa y etiquetas

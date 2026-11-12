@@ -10,12 +10,15 @@ import {
   advance,
   bestHand,
   botAction,
+  clampRaiseTarget,
   compareScores,
   createTable,
   equity,
   evaluate5,
   legalActions,
+  raiseOptions,
   startHand,
+  stepRaiseTarget,
 } from '../js/poker-engine.js';
 
 /* ---------- Utilidades ---------- */
@@ -149,6 +152,60 @@ test('legalActions calcula igualar y la subida mínima', () => {
   assert.equal(legal.check, false);
   assert.equal(legal.raise.min, BB * 2);
   assert.equal(legal.raise.max, START_STACK);
+});
+
+test('raiseOptions arma presets claros dentro del rango legal', () => {
+  const table = createTable({ dealer: 0 });
+  startHand(table, seededRng(8));
+  const options = raiseOptions(table, 3);
+  assert.equal(options.raise.min, 20);
+  assert.equal(options.raise.max, START_STACK);
+  assert.equal(options.toCall, 10);
+  assert.deepEqual(
+    options.presets.map((preset) => preset.id),
+    ['min', 'half', 'pot', 'allin'],
+  );
+  assert.deepEqual(
+    options.presets.map((preset) => preset.amount),
+    [20, 25, 35, START_STACK],
+  );
+  assert.equal(options.presets.every((preset) => preset.amount >= 20 && preset.amount <= START_STACK), true);
+});
+
+test('raiseOptions no repite montos y prioriza el all-in', () => {
+  const table = createTable({ dealer: 0 });
+  startHand(table, seededRng(8));
+  table.players[3].stack = 35;
+  const options = raiseOptions(table, 3);
+  assert.equal(options.raise.max, 35);
+  assert.deepEqual(
+    options.presets.map((preset) => preset.label),
+    ['Mínima', '½ pozo', 'All in'],
+  );
+  assert.equal(options.presets.at(-1).amount, 35);
+});
+
+test('raiseOptions devuelve null cuando no es el turno', () => {
+  const table = createTable({ dealer: 0 });
+  startHand(table, seededRng(8));
+  assert.equal(raiseOptions(table, 0), null);
+});
+
+test('clampRaiseTarget respeta el mínimo y el máximo', () => {
+  const table = createTable({ dealer: 0 });
+  startHand(table, seededRng(8));
+  assert.equal(clampRaiseTarget(table, 3, 2), 20);
+  assert.equal(clampRaiseTarget(table, 3, 70), 70);
+  assert.equal(clampRaiseTarget(table, 3, 999), START_STACK);
+});
+
+test('stepRaiseTarget avanza de a una ciega chica y no se pasa', () => {
+  const table = createTable({ dealer: 0 });
+  startHand(table, seededRng(8));
+  assert.equal(stepRaiseTarget(table, 3, 20, 2), 30);
+  assert.equal(stepRaiseTarget(table, 3, 20, -1), 20);
+  assert.equal(stepRaiseTarget(table, 3, 298, 1), START_STACK);
+  assert.equal(stepRaiseTarget(table, 3, START_STACK, 1), START_STACK);
 });
 
 test('no se puede cantar check con una apuesta pendiente', () => {

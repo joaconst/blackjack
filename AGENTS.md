@@ -11,14 +11,14 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.0` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.1` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
 ## Comandos
 
 ```bash
-npm test                       # 52 tests unitarios de los dos motores (node --test)
+npm test                       # 57 tests unitarios de los dos motores (node --test)
 npm start                      # npx serve . (el service worker necesita localhost o HTTPS)
 node --check js/app.js         # chequeo de sintaxis antes de commitear
 node --check js/poker.js
@@ -64,7 +64,7 @@ js/app.js             estado, DOM, persistencia, gestos, PWA
 js/poker.js           controlador del póker, turnos, bots y saldo compartido
 sw.js                 cache offline (subir CACHE en cada deploy)
 tests/engine.test.js  28 tests del blackjack
-tests/poker.test.js   24 tests del póker
+tests/poker.test.js   29 tests del póker
 ```
 
 - `state.hands` **no se persiste**: al recargar se vuelve a la fase de apuesta.
@@ -85,6 +85,10 @@ tests/poker.test.js   24 tests del póker
 - Póker: ciegas $5/$10, cap por mano $300 (`TABLE_CAP`), bots con Monte Carlo
   (`sims: 140`) y demoras de 620–1140 ms. El saldo disponible durante una mano es
   `balance - (startStack - stack del jugador)`.
+- Montos de subida: `raiseOptions`, `clampRaiseTarget` y `stepRaiseTarget` en
+  `js/poker-engine.js` son la única fuente de verdad. El panel usa presets
+  (mínima, ½ pozo, pozo, all in) y pasos de una ciega chica; reutilizar esas
+  funciones cuando se agreguen gestos. El all-in siempre pide confirmación.
 
 ## Seeds deterministas para E2E
 
@@ -100,13 +104,14 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
 ## Verificación antes de dar algo por terminado
 
 1. `node --check` de `js/app.js`, `js/poker.js`, `js/poker-engine.js` y `sw.js`.
-2. `npm test` → 52/52.
+2. `npm test` → 57/57.
 3. Playwright blackjack: victoria (244) y derrota (3) en mano única sin caja;
    split (18) conserva cajas redondeadas; capturas en 390×844 y 320×568; sin
    errores de consola.
 4. Playwright póker (`run-poker.cjs`): selector, persistencia, reanudación,
    bloqueo de cambio en mano, liquidación del saldo, regreso al blackjack y sin
-   desborde en 320×568.
+   desborde en 320×568. Probar aparte el panel de subida: presets, −/+, cancelar,
+   all-in confirmado y botón de confirmar visible en 320×568.
 5. Si se tocó interacción, probar gestos con touch real simulado (CDP
    `Input.dispatchTouchEvent`), no solo con clicks.
 6. Commit + push y confirmar que `HEAD` y `origin/main` coinciden.

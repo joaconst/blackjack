@@ -15,16 +15,19 @@ import {
   applyAction,
   advance as advanceTable,
   botAction,
+  clampRaiseTarget,
   createTable,
   legalActions,
+  raiseOptions,
   startHand as beginHand,
+  stepRaiseTarget,
 } from './poker-engine.js';
 import { sound, unlockSoundOnGesture } from './sound.js';
 
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.0';
+const APP_VERSION = 'v2.1';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 const BOT_PROFILES = ['balanced', 'tight', 'aggro'];
@@ -53,12 +56,18 @@ const els = {
   startNote: document.getElementById('startNote'),
   tableInfo: document.getElementById('tableInfo'),
   actionPanel: document.getElementById('actionPanel'),
+  actionRow: document.getElementById('actionRow'),
   foldBtn: document.getElementById('foldBtn'),
   callBtn: document.getElementById('callBtn'),
   raiseBtn: document.getElementById('raiseBtn'),
   raisePanel: document.getElementById('raisePanel'),
   raisePresets: document.getElementById('raisePresets'),
   raiseAmount: document.getElementById('raiseAmount'),
+  raiseHint: document.getElementById('raiseHint'),
+  raiseRange: document.getElementById('raiseRange'),
+  raiseMinus: document.getElementById('raiseMinus'),
+  raisePlus: document.getElementById('raisePlus'),
+  raiseCancel: document.getElementById('raiseCancel'),
   raiseConfirm: document.getElementById('raiseConfirm'),
   noFundsPanel: document.getElementById('noFundsPanel'),
   countdown: document.getElementById('countdown'),
@@ -662,10 +671,11 @@ function renderControls() {
   const table = state.table;
   const canAct = Boolean(table && !table.settled && table.turn === 0 && !state.busy);
   const legal = canAct ? legalActions(table, 0) : null;
+  const options = canAct ? raiseOptions(table, 0) : null;
 
   els.foldBtn.disabled = !canAct;
   els.callBtn.disabled = !canAct;
-  els.raiseBtn.disabled = !canAct || !legal || !legal.raise;
+  els.raiseBtn.disabled = !canAct || !options;
 
   if (legal) {
     els.callBtn.textContent =
@@ -676,49 +686,96 @@ function renderControls() {
     els.raiseBtn.textContent = 'Subir';
   }
 
-  if (!canAct) state.raiseOpen = false;
+  if (!canAct || !options) state.raiseOpen = false;
+  els.actionRow.hidden = canAct && state.raiseOpen;
   els.raisePanel.hidden = !canAct || !state.raiseOpen;
-  if (!els.raisePanel.hidden) renderRaise(legal);
+  if (!els.raisePanel.hidden) renderRaise(options);
 }
 
-function raiseTargets(legal) {
+function currentRaiseOptions() {
   const table = state.table;
-  if (!legal || !legal.raise) return [];
-  const { min, max } = legal.raise;
-  const base = table.pot + legal.toCall;
-  const half = table.currentBet + Math.round(base * 0.5);
-  const full = table.currentBet + base;
-  const clamp = (value) => Math.max(min, Math.min(max, value));
-  const values = [min, clamp(half), clamp(full), max].filter(
-    (value, index, list) => list.indexOf(value) === index,
-  );
-  return values;
+  if (!table || table.settled || table.turn !== 0 || state.busy) return null;
+  return raiseOptions(table, 0);
 }
 
-function renderRaise(legal) {
-  const targets = raiseTargets(legal);
-  if (!targets.includes(state.raiseTarget)) state.raiseTarget = targets[0] || 0;
+function renderRaise(options) {
+  if (!options) return;
+
+  state.raiseTarget = clampRaiseTarget(state.table, 0, state.raiseTarget || options.raise.min);
 
   els.raisePresets.replaceChildren(
-    ...targets.map((value) => {
+    ...options.presets.map((preset) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'poker-raise__preset';
-      button.textContent = value === legal.raise.max ? 'All in' : money(value);
-      button.dataset.value = String(value);
-      button.setAttribute('aria-pressed', String(value === state.raiseTarget));
-      button.classList.toggle('is-selected', value === state.raiseTarget);
+      button.dataset.value = String(preset.amount);
+      button.dataset.preset = preset.id;
+
+      const label = document.createElement('span');
+      label.className = 'poker-raise__preset-label';
+      label.textContent = preset.label;
+
+      const amount = document.createElement('span');
+      amount.className = 'poker-raise__preset-amount';
+      amount.textContent = money(preset.amount);
+
+      button.append(label, amount);
+      button.setAttribute('aria-pressed', String(preset.amount === state.raiseTarget));
+      button.classList.toggle('is-selected', preset.amount === state.raiseTarget);
       return button;
     }),
   );
 
-  els.raiseAmount.textContent = money(state.raiseTarget);
-  els.raiseConfirm.textContent =
-    state.raiseTarget >= (legal.raise ? legal.raise.max : 0)
-      ? 'All in'
-      : state.table.currentBet === 0
-        ? 'Apostar'
-        : 'Subir';
+  paintRaise(options);
+}
+
+function paintRaise(options) {
+  if (!options) return;
+  const table = state.table;
+  const target = state.raiseTarget;
+  const allIn = target >= options.raise.max;
+  const extra = Math.max(0, target - table.currentBet);
+
+  els.raiseAmount.textContent = money(target);
+  els.raiseHint.textContent = allIn
+    ? `All in · subís ${money(extra)}`
+    : options.toCall > 0
+      ? `Igualás ${money(options.toCall)} · subís ${money(extra)}`
+      : `Subís ${money(extra)}`;
+  els.raiseRange.textContent = `Mínima ${money(options.raise.min)} · Máxima ${money(options.raise.max)}`;
+
+  els.raiseConfirm.textContent = allIn
+    ? 'Confirmar all in'
+    : options.toCall > 0
+      ? `Subir a ${money(target)}`
+      : `Apostar ${money(target)}`;
+  els.raiseConfirm.classList.toggle('btn--danger', allIn);
+  els.raiseConfirm.classList.toggle('btn--primary', !allIn);
+
+  for (const button of els.raisePresets.children) {
+    const selected = Number(button.dataset.value) === target;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  }
+}
+
+function adjustRaise(steps, { silent = false } = {}) {
+  const options = currentRaiseOptions();
+  if (!options) return;
+  const next = stepRaiseTarget(state.table, 0, state.raiseTarget, steps);
+  if (next === state.raiseTarget) return;
+  state.raiseTarget = next;
+  if (!silent) sound.play('tick');
+  paintRaise(options);
+}
+
+function closeRaise() {
+  if (!state.raiseOpen) return;
+  stopStepHold();
+  state.raiseOpen = false;
+  state.raiseTarget = 0;
+  renderControls();
+  els.raiseBtn.focus({ preventScroll: true });
 }
 
 function renderCountdown() {
@@ -893,32 +950,89 @@ els.callBtn.addEventListener('click', () => {
   actAsPlayer({ type: legal.toCall > 0 ? 'call' : 'check' });
 });
 els.raiseBtn.addEventListener('click', () => {
-  const table = state.table;
-  if (!table) return;
-  const legal = legalActions(table, 0);
-  if (!legal || !legal.raise) return;
+  const options = currentRaiseOptions();
+  if (!options) return;
   state.raiseOpen = true;
-  state.raiseTarget = legal.raise.min;
-  render();
+  state.raiseTarget = options.raise.min;
+  sound.play('tick');
+  renderControls();
+  requestAnimationFrame(() => {
+    if (els.raisePanel.hidden) return;
+    els.raisePanel.scrollIntoView({ block: 'nearest' });
+  });
 });
 
 els.raisePresets.addEventListener('click', (event) => {
   const button = event.target.closest('.poker-raise__preset');
   if (!button) return;
+  const options = currentRaiseOptions();
+  if (!options) return;
   const value = Number(button.dataset.value);
   if (!Number.isFinite(value)) return;
-  state.raiseTarget = value;
+  state.raiseTarget = clampRaiseTarget(state.table, 0, value);
   sound.play('tick');
-  render();
+  paintRaise(options);
 });
 
 els.raiseConfirm.addEventListener('click', () => {
-  const table = state.table;
-  if (!table || table.settled) return;
-  const legal = legalActions(table, 0);
-  if (!legal || !legal.raise) return;
-  if (state.raiseTarget >= legal.raise.max) actAsPlayer({ type: 'allin' });
+  const options = currentRaiseOptions();
+  if (!options) return;
+  if (state.raiseTarget >= options.raise.max) actAsPlayer({ type: 'allin' });
   else actAsPlayer({ type: 'raise', amount: state.raiseTarget });
+});
+
+els.raiseCancel.addEventListener('click', closeRaise);
+
+const stepHold = { timer: 0, interval: 0 };
+
+function stopStepHold() {
+  clearTimeout(stepHold.timer);
+  clearInterval(stepHold.interval);
+  stepHold.timer = 0;
+  stepHold.interval = 0;
+}
+
+function startStepHold(delta, event) {
+  stopStepHold();
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+  adjustRaise(delta);
+  if (typeof event.currentTarget.setPointerCapture === 'function') {
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* sin captura de puntero */
+    }
+  }
+
+  stepHold.timer = setTimeout(() => {
+    let ticks = 0;
+    stepHold.interval = setInterval(() => {
+      ticks += 1;
+      adjustRaise(delta * (ticks > 8 ? 5 : 1), { silent: true });
+    }, 90);
+  }, 420);
+}
+
+for (const [button, delta] of [
+  [els.raiseMinus, -1],
+  [els.raisePlus, 1],
+]) {
+  button.addEventListener('pointerdown', (event) => startStepHold(delta, event));
+  button.addEventListener('pointerup', stopStepHold);
+  button.addEventListener('pointercancel', stopStepHold);
+  button.addEventListener('lostpointercapture', stopStepHold);
+  button.addEventListener('click', (event) => {
+    if (event.detail !== 0) return;
+    adjustRaise(delta);
+  });
+}
+
+window.addEventListener('pointerup', stopStepHold);
+window.addEventListener('pointercancel', stopStepHold);
+window.addEventListener('blur', stopStepHold);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopStepHold();
 });
 
 els.themeBtn.addEventListener('click', () => {

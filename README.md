@@ -77,7 +77,9 @@ el mismo stack por mano: el menor entre tu saldo y **$300**.
 - Ciegas de **$5/$10** y una sola mano por vez. La mesa no cobra rake.
 - Recibís dos cartas propias y hay cinco comunitarias: flop, turn y river.
 - En cada ronda podés **retirarte**, **pasar/igualar**, **subir** o ir **all in**.
-  Las subidas se eligen con presets (mínima, medio pozo, pozo completo y all in).
+  El panel de subida muestra cuánto igualás y cuánto subís, con presets
+  (mínima, ½ pozo, pozo y all in) y ajuste fino de **−$5 / +$5**. Mantené
+  presionado para acelerar. El all in pide confirmación.
 - Ganás con la mejor mano de cinco cartas o si todos los demás se retiran. Hay
   botes laterales cuando hay all-ins de distinto tamaño.
 - Al terminar la mano, el neto (`stack final − stack inicial`) se suma o se resta
@@ -127,7 +129,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.0`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.1`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 
@@ -143,9 +145,9 @@ doble, mazo, lógica del saldo diario y la pila de fichas (suma exacta, máximo 
 7 fichas y denominaciones disponibles según el saldo).
 
 Los tests de póker cubren el evaluador de 7 cartas con desempates, ciegas y
-turnos, subidas mínimas, cierre de calles, retiro, botes laterales, devolución de
-apuestas no igualadas, empates, equidad por Monte Carlo y una simulación de 25
-manos que verifica que las fichas se conserven.
+turnos, subidas mínimas, montos y presets de subida, cierre de calles, retiro,
+botes laterales, devolución de apuestas no igualadas, empates, equidad por Monte
+Carlo y una simulación de 25 manos que verifica que las fichas se conserven.
 
 ## Estructura
 
@@ -216,7 +218,7 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (por ejemplo `blackjack-v2.0` → `blackjack-v2.1`) y `APP_VERSION` en
+  `sw.js` (por ejemplo `blackjack-v2.1` → `blackjack-v2.2`) y `APP_VERSION` en
   `js/app.js` y `js/poker.js` para que se actualice el cache y la versión que se
   muestra en Ajustes.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
