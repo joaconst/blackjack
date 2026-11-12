@@ -28,7 +28,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const LEGACY_KEY = 'blackjack.state.v1';
-const APP_VERSION = 'v6';
+const APP_VERSION = 'v1.0';
 const money = formatMoney;
 let resetting = false;
 

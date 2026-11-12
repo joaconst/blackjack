@@ -102,9 +102,9 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-Abajo de todo, la app muestra la versión instalada (`versión v6`). Si ves una
-versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que el
-service worker tome la actualización.
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v1.0`). Si
+ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
+el service worker tome la actualización.
 
 ## Tests
 
@@ -180,8 +180,9 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (`blackjack-v6` → `blackjack-v7`) y `APP_VERSION` en `js/app.js` para que
-  se actualice el cache y la versión que se muestra abajo de todo.
+  `sw.js` (por ejemplo `blackjack-v1.0` → `blackjack-v1.1`) y `APP_VERSION` en
+  `js/app.js` para que se actualice el cache y la versión que se muestra en
+  Ajustes.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
   saldo, apuesta y mesa; conserva tema, sonido y gestos.
 - El botón de tema arranca siguiendo al sistema; una vez que lo tocás, queda
