@@ -11,7 +11,7 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.2` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.3` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
@@ -85,11 +85,17 @@ tests/poker.test.js   29 tests del póker
   450 ms y 40 px.
 - Gestos del póker en `js/poker.js`: borde 28 px, doble toque 450 ms/40 px,
   derecha 52 px para igualar/pasar, izquierda 90 px para retirarse (aviso a los
-  45 px) en 0,9 s. Son horizontales para no pelear con el scroll (`touch-action:
-  pan-y`). Después de retirarse, el doble toque o `#skipBtn` llaman a
+  45 px) en 0,9 s. Después de retirarse, el doble toque o `#skipBtn` llaman a
   `skipToEnd()`, que cancela `state.botTimer` y corre a los bots hasta `settled`
   con una guarda de 500 acciones. La preferencia `gestures` es compartida con el
   blackjack.
+- **La pantalla de juego del póker no panea:** `.app` y `.poker__table` usan
+  `touch-action: none`, así que los desliz verticales no mueven ni hacen rebotar
+  la página. La hoja de Ajustes vive fuera de `.app` y conserva su scroll. El
+  scroll por código sigue andando (`scrollIntoView` del panel de subida y del
+  banner de resultado); `closeRaise()` y `startNewHand()` vuelven a `scrollY = 0`.
+  No mover el bloqueo a `html`/`body` ni cambiar `touch-action` en `styles.css`:
+  rompería la hoja.
 - Póker: ciegas $5/$10, cap por mano $300 (`TABLE_CAP`), bots con Monte Carlo
   (`sims: 140`) y demoras de 620–1140 ms. El saldo disponible durante una mano es
   `balance - (startStack - stack del jugador)`.
@@ -122,7 +128,10 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
    presets, −/+, cancelar, all-in confirmado y botón de confirmar visible en
    320×568. Probar los gestos (`probe-poker-gestures.cjs`): doble toque, swipe
    derecha/izquierda, interruptor apagado, botón Ver el final, recarga después de
-   retirarse y salto al ganador en 390×844 y 320×568.
+   retirarse y salto al ganador en 390×844 y 320×568. Comprobar además que un
+   swipe vertical sobre la mesa y sobre los controles no cambia `scrollY`, que la
+   hoja de Ajustes sí scrollea y que el gesto horizontal sigue funcionando
+   después.
 5. Si se tocó interacción, probar gestos con touch real simulado (CDP
    `Input.dispatchTouchEvent`), no solo con clicks.
 6. Commit + push y confirmar que `HEAD` y `origin/main` coinciden.

@@ -102,6 +102,8 @@ el blackjack.
   ganador. También está el botón **Ver el final**.
 - Empezá el gesto lejos del borde (unos 28 px) para no chocar con el gesto de
   atrás del teléfono. Los gestos son horizontales para no competir con el scroll.
+- **Arriba o abajo no hace nada:** la mesa no se desplaza ni rebota. La hoja de
+  Ajustes sí scrollea, porque vive fuera del área de juego.
 - El all in sigue en el panel de subida, con confirmación.
 
 ### Saldo diario
@@ -144,7 +146,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.2`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.3`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 

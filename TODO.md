@@ -5,9 +5,12 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 
 ## Verificación pendiente
 
-- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.1, subir
-      a v2.2 y confirmar que Ajustes muestra la versión nueva tras cerrar y
+- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.2, subir
+      a v2.3 y confirmar que Ajustes muestra la versión nueva tras cerrar y
       abrir la app.
+- [ ] Confirmar en un teléfono real que deslizar arriba/abajo en el póker no
+      mueve ni rebota la pantalla (en emulación no hay barra de URL ni rebote de
+      iOS).
 - [ ] Revisar el contraste del badge `.score.is-win` / `.is-lose`, de las cajas
       de split y de la mesa de póker en **tema oscuro** (las capturas actuales
       son en claro).

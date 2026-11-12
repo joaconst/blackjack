@@ -27,7 +27,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.2';
+const APP_VERSION = 'v2.3';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 const BOT_PROFILES = ['balanced', 'tight', 'aggro'];
@@ -417,6 +417,10 @@ function startNewHand() {
   advanceTable(table);
   saveTable();
   render();
+  // Una mano nueva arranca con la mesa alineada arriba.
+  requestAnimationFrame(() => {
+    if (window.scrollY > 0) window.scrollTo({ top: 0 });
+  });
   scheduleBots();
 }
 
@@ -694,6 +698,15 @@ function render() {
     els.resultNet.classList.add(
       info.net > 0 ? 'is-win' : info.net < 0 ? 'is-lose' : 'is-push',
     );
+    // En pantallas muy bajas el banner puede quedar fuera: lo acercamos
+    // por código, porque la página ya no se arrastra con el dedo.
+    requestAnimationFrame(() => {
+      if (els.result.hidden) return;
+      const rect = els.result.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight || rect.top < 0) {
+        els.result.scrollIntoView({ block: 'nearest' });
+      }
+    });
   } else {
     els.result.hidden = true;
   }
@@ -876,6 +889,10 @@ function closeRaise() {
   state.raiseOpen = false;
   state.raiseTarget = 0;
   renderControls();
+  // El panel pudo desplazar la página para mostrarse: volvemos a la mesa.
+  requestAnimationFrame(() => {
+    if (window.scrollY > 0) window.scrollTo({ top: 0 });
+  });
   els.raiseBtn.focus({ preventScroll: true });
 }
 

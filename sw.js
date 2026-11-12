@@ -1,4 +1,4 @@
-const CACHE = 'blackjack-v2.2';
+const CACHE = 'blackjack-v2.3';
 
 const ASSETS = [
   './',

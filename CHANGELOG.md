@@ -4,6 +4,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.3] — 2026-11-12
+
+### Corregido
+- En el póker, deslizar hacia arriba o abajo ya no mueve la página: la pantalla
+  de juego no se arrastra ni rebota. Los gestos verticales quedan muertos y solo
+  responden los horizontales y el doble toque.
+- La hoja de Ajustes conserva su scroll propio y el panel de subida se sigue
+  acomodando solo en 320×568. Al cerrar el panel o repartir, la vista vuelve
+  arriba.
+
+### Cambiado
+- `APP_VERSION = 'v2.3'`, `CACHE = 'blackjack-v2.3'`.
+- `.app` del póker usa `touch-action: none`; `.poker__table` deja de permitir el
+  paneo vertical.
+
 ## [v2.2] — 2026-11-12
 
 ### Agregado
