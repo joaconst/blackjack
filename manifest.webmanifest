@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Mesa",
   "short_name": "Mesa",
-  "description": "Blackjack y póker para jugar desde el celular. Fichas virtuales, sin dinero real.",
+  "description": "Blackjack y póker para jugar desde el celular.",
   "lang": "es-AR",
   "dir": "ltr",
   "start_url": "./",

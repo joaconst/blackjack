@@ -3,14 +3,6 @@
    Reusa tokens, cartas, botones y hojas de styles.css.
    ========================================================= */
 
-/* La pantalla de juego no se desplaza con el dedo: los gestos verticales
-   quedan muertos y la mesa no se mueve ni rebota. La hoja de Ajustes vive
-   fuera de .app, así que conserva su scroll. El desplazamiento por código
-   (scrollIntoView del panel de subida) sigue funcionando. */
-.app {
-  touch-action: none;
-}
-
 .poker {
   display: flex;
   flex: 1;

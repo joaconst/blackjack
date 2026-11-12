@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Póker · Mesa</title>
-  <meta name="description" content="Texas Hold'em contra bots, con fichas virtuales. Sin dinero real.">
+  <meta name="description" content="Texas Hold'em contra bots.">
   <meta name="theme-color" content="#f6f5f0" id="themeColor">
   <meta name="color-scheme" content="light dark">
   <meta name="mobile-web-app-capable" content="yes">
@@ -81,7 +81,6 @@
         <span class="wallet__label">Saldo</span>
         <strong class="wallet__amount" id="balance">$1.000</strong>
       </div>
-      <span class="wallet__tag">Fichas virtuales</span>
     </section>
 
     <main class="poker" aria-label="Mesa de póker">
@@ -226,7 +225,6 @@
         <section class="sheet__section">
           <h3>Tu saldo</h3>
           <p class="sheet__text">Empezás con $1.000. Una vez por día, si tu saldo queda por debajo de $500, lo completamos hasta $500.</p>
-          <p class="sheet__text">Son fichas de fantasía. Acá no se juega dinero real.</p>
         </section>
 
         <section class="sheet__section">
@@ -234,6 +232,12 @@
           <p class="sheet__text" id="installStatus">Agregala a la pantalla de inicio para usarla como una app.</p>
           <ol class="steps" id="installSteps" hidden></ol>
           <button type="button" class="btn btn--soft" id="sheetInstallBtn" hidden>Instalar aplicación</button>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Modo beta <span class="tag">beta</span></h3>
+          <p class="sheet__text">Agregá las fichas que quieras para probar apuestas grandes. Esto no va a estar en la versión final.</p>
+          <button type="button" class="btn btn--soft" id="addFundsBtn">Agregar fichas</button>
         </section>
 
         <section class="sheet__section">
@@ -248,7 +252,39 @@
           </div>
         </section>
 
-        <p class="sheet__foot">Mesa · fichas virtuales · <span id="appVersion">—</span></p>
+        <p class="sheet__foot">Mesa · <span id="appVersion">—</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet" id="addSheet" hidden>
+    <div class="sheet__backdrop" data-close-add></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="addTitle">Agregar fichas</h2>
+        <button type="button" class="icon-btn" id="addClose" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sheet__body">
+        <div class="add-summary">
+          <span class="bet__label">Vas a agregar</span>
+          <strong class="add-total" id="addTotal">$0</strong>
+          <span class="add-after" id="addAfter">Saldo: $1.000</span>
+        </div>
+
+        <div class="chips chips--rail" id="addChips" role="group" aria-label="Fichas para agregar"></div>
+
+        <div class="add-tools">
+          <button type="button" class="link-btn" id="addUndo">Deshacer</button>
+          <button type="button" class="link-btn" id="addClear">Limpiar</button>
+        </div>
+
+        <button type="button" class="btn btn--primary" id="addConfirm" disabled>Agregar</button>
+        <p class="sheet__foot">Solo para probar la beta</p>
       </div>
     </div>
   </div>

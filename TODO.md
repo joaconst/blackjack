@@ -5,8 +5,8 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 
 ## Verificación pendiente
 
-- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.2, subir
-      a v2.3 y confirmar que Ajustes muestra la versión nueva tras cerrar y
+- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.3, subir
+      a v2.4 y confirmar que Ajustes muestra la versión nueva tras cerrar y
       abrir la app.
 - [ ] Confirmar en un teléfono real que deslizar arriba/abajo en el póker no
       mueve ni rebota la pantalla (en emulación no hay barra de URL ni rebote de

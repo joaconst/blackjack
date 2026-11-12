@@ -6,12 +6,12 @@ regla, editá acá en el mismo commit.
 
 ## Qué es
 
-Blackjack y póker (Texas Hold'em) mobile con fichas virtuales, en español. Sin
+Blackjack y póker (Texas Hold'em) mobile, en español. Sin
 frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offline.
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.3` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.4` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
@@ -30,9 +30,11 @@ Servidor de pruebas usado en sesiones anteriores: `http://localhost:4173/`.
 Las pruebas E2E con Playwright viven en `C:\Users\const\AppData\Local\Temp\opencode\bj-test\`
 (`run8.cjs` regresión de blackjack, `run-poker.cjs` póker y selector,
 `probe-raise2.cjs` panel de subida, `probe-poker-gestures.cjs` gestos y salto al
-final, `visual.cjs` capturas, `probe-touch*.cjs` gestos). Son temporales: si se
-limpian, hay que rehacerlas. Playwright usa `channel: 'msedge'`, viewport 390×844
-y 320×568, `isMobile` y `hasTouch`.
+final, `probe-bj-noscroll.cjs` bloqueo vertical y hojas del blackjack,
+`probe-beta-poker.cjs` fichas beta del póker y textos, `visual.cjs` capturas,
+`probe-touch*.cjs` gestos). Son temporales: si se limpian, hay que rehacerlas.
+Playwright usa `channel: 'msedge'`, viewport 390×844 y 320×568, `isMobile` y
+`hasTouch`.
 
 ## Reglas del proyecto
 
@@ -89,13 +91,18 @@ tests/poker.test.js   29 tests del póker
   `skipToEnd()`, que cancela `state.botTimer` y corre a los bots hasta `settled`
   con una guarda de 500 acciones. La preferencia `gestures` es compartida con el
   blackjack.
-- **La pantalla de juego del póker no panea:** `.app` y `.poker__table` usan
-  `touch-action: none`, así que los desliz verticales no mueven ni hacen rebotar
-  la página. La hoja de Ajustes vive fuera de `.app` y conserva su scroll. El
-  scroll por código sigue andando (`scrollIntoView` del panel de subida y del
-  banner de resultado); `closeRaise()` y `startNewHand()` vuelven a `scrollY = 0`.
-  No mover el bloqueo a `html`/`body` ni cambiar `touch-action` en `styles.css`:
-  rompería la hoja.
+- **La pantalla de juego no panea en ningún juego:** `.app` usa
+  `touch-action: none` en `css/styles.css` y `.poker__table` lo repite. Los desliz
+  verticales no mueven ni hacen rebotar la página, tampoco sobre las fichas. Las
+  hojas de Ajustes, la de agregar fichas y el selector viven fuera de `.app`, así
+  que conservan su scroll. El scroll por código sigue andando (`scrollIntoView`
+  del panel de subida y del banner de resultado); `closeRaise()` y
+  `startNewHand()` vuelven a `scrollY = 0`. No mover el bloqueo a `html`/`body`:
+  rompería las hojas.
+- **Fichas beta:** están en los dos juegos, en Ajustes. El póker repite el bloque
+  de `js/app.js` (`makeChip`, `renderAddSheet`, `confirmAddFunds`) y usa
+  `available()` para el saldo de la hoja, así no cuenta lo comprometido en la
+  mano. Al confirmar se llama `saveProgress()` y `render()`.
 - Póker: ciegas $5/$10, cap por mano $300 (`TABLE_CAP`), bots con Monte Carlo
   (`sims: 140`) y demoras de 620–1140 ms. El saldo disponible durante una mano es
   `balance - (startStack - stack del jugador)`.
@@ -121,7 +128,9 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
 2. `npm test` → 57/57.
 3. Playwright blackjack: victoria (244) y derrota (3) en mano única sin caja;
    split (18) conserva cajas redondeadas; capturas en 390×844 y 320×568; sin
-   errores de consola.
+   errores de consola. Comprobar que un swipe vertical sobre las fichas, el
+   encabezado o los botones no cambia `scrollY`, que los gestos de pedir y
+   plantarse siguen andando y que la hoja de Ajustes scrollea.
 4. Playwright póker (`run-poker.cjs`): selector, persistencia, reanudación,
    bloqueo de cambio en mano, liquidación del saldo, regreso al blackjack y sin
    desborde en 320×568. Probar aparte el panel de subida (`probe-raise2.cjs`):
@@ -131,7 +140,9 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
    retirarse y salto al ganador en 390×844 y 320×568. Comprobar además que un
    swipe vertical sobre la mesa y sobre los controles no cambia `scrollY`, que la
    hoja de Ajustes sí scrollea y que el gesto horizontal sigue funcionando
-   después.
+   después. Probar las fichas beta del póker: sumar, deshacer, limpiar,
+   confirmar con el saldo actualizado y persistido, y que no queden textos de
+   “fichas virtuales” en ninguna de las dos páginas.
 5. Si se tocó interacción, probar gestos con touch real simulado (CDP
    `Input.dispatchTouchEvent`), no solo con clicks.
 6. Commit + push y confirmar que `HEAD` y `origin/main` coinciden.

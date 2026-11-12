@@ -1,4 +1,5 @@
 import {
+  CHIP_TIERS,
   DAILY_FLOOR,
   START_BALANCE,
   RANK_LABEL,
@@ -27,7 +28,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.3';
+const APP_VERSION = 'v2.4';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 const BOT_PROFILES = ['balanced', 'tight', 'aggro'];
@@ -105,6 +106,15 @@ const els = {
   resetConfirm: document.getElementById('resetConfirm'),
   resetCancel: document.getElementById('resetCancel'),
   resetGo: document.getElementById('resetGo'),
+  addFundsBtn: document.getElementById('addFundsBtn'),
+  addSheet: document.getElementById('addSheet'),
+  addClose: document.getElementById('addClose'),
+  addTotal: document.getElementById('addTotal'),
+  addAfter: document.getElementById('addAfter'),
+  addChips: document.getElementById('addChips'),
+  addUndo: document.getElementById('addUndo'),
+  addClear: document.getElementById('addClear'),
+  addConfirm: document.getElementById('addConfirm'),
 };
 
 /* ---------- Almacenamiento ---------- */
@@ -1041,6 +1051,100 @@ function closeSheet() {
   }
 }
 
+/* ---------- Fichas beta ---------- */
+
+let addAmount = 0;
+let addStack = [];
+let lastFocusedAdd = null;
+
+function chipLabel(value) {
+  if (value < 1000) return String(value);
+  const k = value / 1000;
+  return `${Number.isInteger(k) ? k : String(k).replace('.', ',')}k`;
+}
+
+function chipIndex(value) {
+  const index = CHIP_TIERS.indexOf(value);
+  return index < 0 ? 0 : index;
+}
+
+function makeChip(value) {
+  const node = document.createElement('button');
+  node.type = 'button';
+  node.setAttribute('aria-label', `Agregar ${money(value)}`);
+  node.className = `chip chip--${value}`;
+  node.dataset.value = String(value);
+
+  const inner = document.createElement('span');
+  inner.textContent = chipLabel(value);
+  node.append(inner);
+  return node;
+}
+
+function buildAddChips() {
+  els.addChips.replaceChildren(...CHIP_TIERS.map((value) => makeChip(value)));
+}
+
+function renderAddSheet() {
+  // En el póker el saldo visible descuenta lo comprometido en la mano.
+  const base = available();
+  els.addTotal.textContent = money(addAmount);
+  els.addAfter.textContent =
+    addAmount > 0
+      ? `${money(base)} → ${money(base + addAmount)}`
+      : `Saldo: ${money(base)}`;
+  els.addConfirm.disabled = addAmount <= 0;
+  els.addConfirm.textContent = addAmount > 0 ? `Agregar ${money(addAmount)}` : 'Agregar fichas';
+  els.addUndo.disabled = addStack.length === 0;
+  els.addClear.disabled = addStack.length === 0;
+}
+
+function openAddSheet() {
+  lastFocusedAdd = document.activeElement;
+  addAmount = 0;
+  addStack = [];
+  renderAddSheet();
+  els.addSheet.hidden = false;
+  document.body.classList.add('has-sheet');
+  els.addClose.focus({ preventScroll: true });
+}
+
+function closeAddSheet() {
+  els.addSheet.hidden = true;
+  if (els.sheet.hidden) document.body.classList.remove('has-sheet');
+  if (lastFocusedAdd && typeof lastFocusedAdd.focus === 'function') {
+    lastFocusedAdd.focus({ preventScroll: true });
+  }
+}
+
+function addFundsChip(value) {
+  if (!Number.isFinite(value) || value <= 0) return;
+  addStack.push(value);
+  addAmount += value;
+  if (state.sound) sound.play('chip', { index: chipIndex(value) });
+  renderAddSheet();
+}
+
+function undoAddFunds() {
+  const value = addStack.pop();
+  if (!value) return;
+  addAmount = Math.max(0, addAmount - value);
+  if (state.sound) sound.play('tick');
+  renderAddSheet();
+}
+
+function confirmAddFunds() {
+  if (addAmount <= 0) return;
+
+  state.balance += addAmount;
+  saveProgress();
+  render();
+
+  toast(`Agregaste ${money(addAmount)}`);
+  if (state.sound) sound.play('unlockTier');
+  closeAddSheet();
+}
+
 function switchGame() {
   const table = state.table;
   if (table && !table.settled) {
@@ -1353,6 +1457,24 @@ els.sheetClose.addEventListener('click', closeSheet);
 els.sheet.addEventListener('click', (event) => {
   if (event.target.closest('[data-close]')) closeSheet();
 });
+els.addFundsBtn.addEventListener('click', openAddSheet);
+els.addClose.addEventListener('click', closeAddSheet);
+els.addUndo.addEventListener('click', undoAddFunds);
+els.addClear.addEventListener('click', () => {
+  addAmount = 0;
+  addStack = [];
+  if (state.sound) sound.play('tick');
+  renderAddSheet();
+});
+els.addConfirm.addEventListener('click', confirmAddFunds);
+els.addChips.addEventListener('click', (event) => {
+  const chip = event.target.closest('.chip');
+  if (!chip) return;
+  addFundsChip(Number(chip.dataset.value));
+});
+els.addSheet.addEventListener('click', (event) => {
+  if (event.target.closest('[data-close-add]')) closeAddSheet();
+});
 els.noFundsRulesBtn.addEventListener('click', () => openSheet());
 els.switchGameBtn.addEventListener('click', switchGame);
 els.installBtn.addEventListener('click', promptInstall);
@@ -1377,7 +1499,8 @@ els.resetGo.addEventListener('click', () => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
-  if (!els.sheet.hidden) closeSheet();
+  if (!els.addSheet.hidden) closeAddSheet();
+  else if (!els.sheet.hidden) closeSheet();
 });
 
 document.addEventListener('visibilitychange', () => {
@@ -1403,6 +1526,7 @@ applyTheme();
 applySound();
 applyGestures();
 buildBoard();
+buildAddChips();
 unlockSoundOnGesture();
 savePrefs();
 

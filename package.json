@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Blackjack mobile con fichas virtuales y saldo diario.",
+  "description": "Blackjack y póker mobile con saldo diario.",
   "scripts": {
     "start": "npx --yes serve .",
     "test": "node --test tests/*.test.js"

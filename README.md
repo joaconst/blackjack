@@ -1,6 +1,6 @@
 # Mesa
 
-Blackjack y póker mobile con fichas virtuales. Sin frameworks ni build: HTML,
+Blackjack y póker mobile. Sin frameworks ni build: HTML,
 CSS y JS puro. Se puede instalar como app en el celular (PWA) y funciona offline.
 
 ## Elegir juego
@@ -66,8 +66,10 @@ con el primer toque, como pide iOS.
 ### Modo beta
 
 En **Ajustes → Modo beta** se pueden agregar fichas tocando denominaciones, sin
-teclado. Es temporal, para probar apuestas grandes, y lo agregado se guarda junto
-con el saldo. Tiene Deshacer, Limpiar y confirmación con el total en vivo.
+teclado, tanto en el blackjack como en el póker. Es temporal, para probar
+apuestas grandes, y lo agregado se guarda junto con el saldo. Tiene Deshacer,
+Limpiar y confirmación con el total en vivo. En el póker la hoja muestra el saldo
+disponible, sin contar lo comprometido en la mano.
 
 ## Póker
 

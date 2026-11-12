@@ -4,6 +4,27 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.4] — 2026-11-12
+
+### Agregado
+- **Modo beta en el póker:** el mismo botón para agregar fichas que ya estaba en
+  el blackjack, en **Ajustes → Modo beta**, con pila de denominaciones, Deshacer,
+  Limpiar y confirmación con el total en vivo. El saldo se guarda compartido y la
+  hoja muestra el saldo disponible mientras hay una mano en curso.
+
+### Corregido
+- En el blackjack, deslizar hacia arriba o abajo ya no mueve la página, tampoco
+  sobre las fichas ni los botones. Los gestos de juego (pedir, plantarse, limpiar
+  y all in) siguen funcionando.
+
+### Cambiado
+- `.app` usa `touch-action: none` en `styles.css`, así que la pantalla de juego
+  no panea en ninguno de los dos juegos. Las hojas y el selector conservan su
+  scroll por quedar fuera de `.app`.
+- Se quitaron todas las menciones a “fichas virtuales” de la interfaz, el
+  manifest, el README y `package.json`.
+- `APP_VERSION = 'v2.4'`, `CACHE = 'blackjack-v2.4'`.
+
 ## [v2.3] — 2026-11-12
 
 ### Corregido
