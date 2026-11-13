@@ -8,8 +8,36 @@ import { createShoe, shuffle } from './engine.js';
 
 export const SB = 5;
 export const BB = 10;
-export const TABLE_CAP = 300;
 export const START_STACK = 300;
+
+// Ciegas elegibles en Ajustes. La ciega chica es siempre la mitad de la grande.
+export const BIG_BLINDS = [10, 100, 1000, 10000];
+export const DEFAULT_BUY_IN = 300;
+export const MIN_BUY_IN_BLINDS = 10;
+export const SUGGESTED_BUY_IN_BLINDS = 100;
+
+/** Ciega grande válida o la de siempre. */
+export function normalizeBigBlind(value) {
+  const bb = Math.floor(Number(value));
+  return BIG_BLINDS.includes(bb) ? bb : BB;
+}
+
+/** Entrada jugable: nunca por debajo de 10 ciegas grandes ni por encima del saldo. */
+export function clampBuyIn(value, balance, bigBlind = BB) {
+  const cash = Math.floor(Number(balance) || 0);
+  const bb = normalizeBigBlind(bigBlind);
+  if (cash < bb) return 0;
+  const min = Math.min(bb * MIN_BUY_IN_BLINDS, cash);
+  const wanted = Math.floor(Number(value));
+  if (!Number.isFinite(wanted) || wanted <= 0) return min;
+  return Math.max(min, Math.min(cash, wanted));
+}
+
+/** Entrada sugerida al cambiar de ciegas: 100 ciegas grandes o todo el saldo. */
+export function suggestedBuyIn(balance, bigBlind = BB) {
+  const bb = normalizeBigBlind(bigBlind);
+  return clampBuyIn(bb * SUGGESTED_BUY_IN_BLINDS, balance, bb);
+}
 
 export const CATEGORY_NAMES = [
   'Carta alta',
@@ -43,8 +71,8 @@ export const BOT_PROFILES = {
   tight: {
     aggression: 0.34,
     tightness: 0.16,
-    bluff: 0.05,
-    semiBluff: 0.3,
+    bluff: 0.08,
+    semiBluff: 0.36,
     cbet: 0.55,
     barrel: 0.25,
     trap: 0.3,
@@ -53,8 +81,8 @@ export const BOT_PROFILES = {
   balanced: {
     aggression: 0.54,
     tightness: 0.04,
-    bluff: 0.11,
-    semiBluff: 0.48,
+    bluff: 0.17,
+    semiBluff: 0.58,
     cbet: 0.68,
     barrel: 0.38,
     trap: 0.2,
@@ -63,8 +91,8 @@ export const BOT_PROFILES = {
   aggro: {
     aggression: 0.8,
     tightness: -0.04,
-    bluff: 0.21,
-    semiBluff: 0.66,
+    bluff: 0.3,
+    semiBluff: 0.74,
     cbet: 0.78,
     barrel: 0.55,
     trap: 0.1,
@@ -72,11 +100,11 @@ export const BOT_PROFILES = {
   },
 };
 
-// El nivel elegido en Ajustes ajusta los rasgos del perfil. "Suave" juega
-// más suelto y se equivoca; "duro" ajusta rangos, presiona y casi no regala.
+// El nivel elegido en Ajustes ajusta los rasgos del perfil. "Fácil" juega
+// más suelto y se equivoca; "Difícil" ajusta rangos, presiona y casi no regala.
 export const BOT_LEVELS = {
-  suave: {
-    label: 'Suave',
+  facil: {
+    label: 'Fácil',
     aggression: 0.72,
     bluff: 0.55,
     semiBluff: 0.7,
@@ -91,8 +119,8 @@ export const BOT_LEVELS = {
     tightness: 0,
     mistake: 0.02,
   },
-  duro: {
-    label: 'Duro',
+  dificil: {
+    label: 'Difícil',
     aggression: 1.12,
     bluff: 1.25,
     semiBluff: 1.15,
@@ -101,21 +129,44 @@ export const BOT_LEVELS = {
   },
 };
 
+// Claves viejas de v2.5: se migran al leer las preferencias.
+const BOT_LEVEL_ALIASES = { suave: 'facil', duro: 'dificil' };
+
+export function normalizeBotLevel(value) {
+  const key = BOT_LEVEL_ALIASES[value] || value;
+  return BOT_LEVELS[key] ? key : 'normal';
+}
+
+// Cuánto farolea la mesa. "Sin" apaga el farol y el semi-farol.
+export const BOT_BLUFF_LEVELS = {
+  sin: 0,
+  pocos: 0.5,
+  normal: 1,
+  muchos: 1.6,
+};
+
+export function normalizeBluffLevel(value) {
+  return typeof value === 'string' && value in BOT_BLUFF_LEVELS ? value : 'normal';
+}
+
 function clamp(value, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
 }
 
-export function resolveTraits(profile, level = 'normal') {
+export function resolveTraits(profile, level = 'normal', bluff = 'normal') {
   const base = BOT_PROFILES[profile] || BOT_PROFILES.balanced;
-  const mod = BOT_LEVELS[level] || BOT_LEVELS.normal;
+  const key = normalizeBotLevel(level);
+  const mod = BOT_LEVELS[key];
+  const bluffMod = BOT_BLUFF_LEVELS[normalizeBluffLevel(bluff)];
   return {
     ...base,
     aggression: clamp(base.aggression * mod.aggression),
     tightness: base.tightness + mod.tightness,
-    bluff: base.bluff * mod.bluff,
-    semiBluff: clamp(base.semiBluff * mod.semiBluff),
+    bluff: clamp(base.bluff * mod.bluff * bluffMod),
+    semiBluff: clamp(base.semiBluff * mod.semiBluff * bluffMod),
+    bluffFactor: bluffMod,
     mistake: mod.mistake,
-    level: BOT_LEVELS[level] ? level : 'normal',
+    level: key,
   };
 }
 
@@ -1015,6 +1066,7 @@ export function pickBotLine(intent = 'weak', rng = Math.random) {
 /* ---------- Decisiones ---------- */
 
 function preflopTarget(table, legal, { threeBet = false, rng = Math.random } = {}) {
+  const quantum = Math.max(1, table.smallBlind || SB);
   let target;
   if (threeBet) {
     target = table.currentBet * (2.6 + rng() * 0.5);
@@ -1030,19 +1082,20 @@ function preflopTarget(table, legal, { threeBet = false, rng = Math.random } = {
     );
     target = table.bigBlind * (2.5 + rng() * 0.8) + limpers * table.bigBlind;
   }
-  target = Math.round(target / SB) * SB;
+  target = Math.round(target / quantum) * quantum;
   return Math.max(legal.raise.min, Math.min(legal.raise.max, target));
 }
 
 function betAmount(table, legal, fraction, strong = false) {
+  const quantum = Math.max(1, table.smallBlind || SB);
   const potAfterCall = table.pot + legal.toCall;
   let target = table.currentBet + potAfterCall * fraction;
-  target = Math.round(target / SB) * SB;
+  target = Math.round(target / quantum) * quantum;
   target = Math.max(legal.raise.min, Math.min(legal.raise.max, target));
 
   // Fuera de una mano fuerte no nos mandamos all-in sin querer.
   if (!strong && target > legal.raise.max * 0.82) {
-    target = Math.max(legal.raise.min, Math.round((legal.raise.max * 0.55) / SB) * SB);
+    target = Math.max(legal.raise.min, Math.round((legal.raise.max * 0.55) / quantum) * quantum);
   }
   return target;
 }
@@ -1071,7 +1124,7 @@ function preflopAction(table, index, { legal, traits, chance, position, rng }) {
       position > 0.72 &&
       raises === 0 &&
       score >= 0.32 &&
-      rng() < 0.35 + traits.aggression * 0.25
+      rng() < (0.35 + traits.aggression * 0.25) * traits.bluffFactor
     ) {
       return { type: 'raise', amount: preflopTarget(table, legal, { rng }), intent: 'bluff' };
     }
@@ -1120,11 +1173,17 @@ function preflopAction(table, index, { legal, traits, chance, position, rng }) {
 export function botAction(
   table,
   index,
-  { rng = Math.random, profile = 'balanced', level = 'normal', sims = 120 } = {},
+  {
+    rng = Math.random,
+    profile = 'balanced',
+    level = 'normal',
+    bluff = 'normal',
+    sims = 120,
+  } = {},
 ) {
   const legal = legalActions(table, index);
   if (!legal) return { type: 'check' };
-  const traits = resolveTraits(profile, level);
+  const traits = resolveTraits(profile, level, bluff);
 
   if (!legal.raise && legal.toCall === 0) return { type: 'check' };
   if (!legal.raise) return { type: 'call' };

@@ -3,15 +3,20 @@ import assert from 'node:assert/strict';
 
 import {
   BB,
+  BIG_BLINDS,
+  BOT_BLUFF_LEVELS,
   BOT_LEVELS,
+  DEFAULT_BUY_IN,
+  MIN_BUY_IN_BLINDS,
   SB,
   START_STACK,
-  TABLE_CAP,
+  SUGGESTED_BUY_IN_BLINDS,
   applyAction,
   advance,
   bestHand,
   boardTexture,
   botAction,
+  clampBuyIn,
   clampRaiseTarget,
   compareScores,
   createTable,
@@ -19,6 +24,9 @@ import {
   equity,
   evaluate5,
   legalActions,
+  normalizeBigBlind,
+  normalizeBluffLevel,
+  normalizeBotLevel,
   normalizeTable,
   pickBotLine,
   positionScore,
@@ -27,6 +35,7 @@ import {
   resolveTraits,
   startHand,
   stepRaiseTarget,
+  suggestedBuyIn,
 } from '../js/poker-engine.js';
 
 /* ---------- Utilidades ---------- */
@@ -483,15 +492,40 @@ test('la fuerza preflop ordena las manos y premia la posición', () => {
 });
 
 test('los niveles y perfiles cambian los rasgos de los bots', () => {
-  const suave = resolveTraits('aggro', 'suave');
+  const facil = resolveTraits('aggro', 'facil');
   const normal = resolveTraits('aggro', 'normal');
-  const duro = resolveTraits('aggro', 'duro');
+  const dificil = resolveTraits('aggro', 'dificil');
 
-  assert.ok(duro.aggression > normal.aggression && normal.aggression > suave.aggression);
-  assert.ok(duro.bluff > normal.bluff && normal.bluff > suave.bluff);
-  assert.ok(suave.mistake > 0 && duro.mistake === 0);
-  assert.equal(resolveTraits('tight', 'duro').level, 'duro');
+  assert.ok(dificil.aggression > normal.aggression && normal.aggression > facil.aggression);
+  assert.ok(dificil.bluff > normal.bluff && normal.bluff > facil.bluff);
+  assert.ok(facil.mistake > 0 && dificil.mistake === 0);
+  assert.equal(resolveTraits('tight', 'dificil').level, 'dificil');
   assert.equal(BOT_LEVELS.normal.label, 'Normal');
+  assert.equal(BOT_LEVELS.facil.label, 'Fácil');
+  assert.equal(BOT_LEVELS.dificil.label, 'Difícil');
+});
+
+test('las claves viejas de nivel migran a Fácil y Difícil', () => {
+  assert.equal(normalizeBotLevel('suave'), 'facil');
+  assert.equal(normalizeBotLevel('duro'), 'dificil');
+  assert.equal(normalizeBotLevel('normal'), 'normal');
+  assert.equal(normalizeBotLevel('otro'), 'normal');
+  assert.equal(normalizeBotLevel(undefined), 'normal');
+});
+
+test('el control de faroles escala de Sin a Muchos', () => {
+  const sin = resolveTraits('balanced', 'normal', 'sin');
+  const pocos = resolveTraits('balanced', 'normal', 'pocos');
+  const normal = resolveTraits('balanced', 'normal', 'normal');
+  const muchos = resolveTraits('balanced', 'normal', 'muchos');
+
+  assert.equal(sin.bluff, 0);
+  assert.equal(sin.semiBluff, 0);
+  assert.ok(pocos.bluff > 0 && pocos.bluff < normal.bluff);
+  assert.ok(muchos.bluff > normal.bluff && muchos.semiBluff > normal.semiBluff);
+  assert.equal(normalizeBluffLevel('sin'), 'sin');
+  assert.equal(normalizeBluffLevel('cualquiera'), 'normal');
+  assert.equal(BOT_BLUFF_LEVELS.sin, 0);
 });
 
 test('un bot con mano fuerte apuesta y uno débil se retira', () => {
@@ -528,7 +562,7 @@ test('un bot con mano fuerte apuesta y uno débil se retira', () => {
   });
   const weak = botAction(weakTable, 1, {
     profile: 'tight',
-    level: 'duro',
+    level: 'dificil',
     sims: 40,
     rng: seededRng(9),
   });
@@ -573,7 +607,7 @@ test('los bots farolean más con aire en posición y heads-up', () => {
   );
 });
 
-test('el nivel duro presiona más que el suave', () => {
+test('el nivel difícil presiona más que el fácil', () => {
   const table = botSpot({
     hole: '9C 7D',
     board: 'AS 8H 2C',
@@ -583,27 +617,27 @@ test('el nivel duro presiona más que el suave', () => {
     folded: [false, false, true, true],
   });
 
-  let suaveRaises = 0;
-  let duroRaises = 0;
+  let facilRaises = 0;
+  let dificilRaises = 0;
   for (let seed = 1; seed <= 40; seed += 1) {
-    const suave = botAction(table, 0, {
+    const facil = botAction(table, 0, {
       profile: 'aggro',
-      level: 'suave',
+      level: 'facil',
       sims: 20,
       rng: seededRng(seed),
     });
-    if (suave.type === 'raise') suaveRaises += 1;
+    if (facil.type === 'raise') facilRaises += 1;
 
-    const duro = botAction(table, 0, {
+    const dificil = botAction(table, 0, {
       profile: 'aggro',
-      level: 'duro',
+      level: 'dificil',
       sims: 20,
       rng: seededRng(seed),
     });
-    if (duro.type === 'raise') duroRaises += 1;
+    if (dificil.type === 'raise') dificilRaises += 1;
   }
 
-  assert.ok(duroRaises > suaveRaises, `duro ${duroRaises} vs suave ${suaveRaises}`);
+  assert.ok(dificilRaises > facilRaises, `difícil ${dificilRaises} vs fácil ${facilRaises}`);
 });
 
 test('los bots no miran las cartas de los rivales', () => {
@@ -667,7 +701,7 @@ test('la charla de los bots puede mentir y no repite siempre', () => {
   assert.ok(tones.size > 1, [...tones].join(','));
 });
 
-test('los bots conservan las fichas también en nivel duro', () => {
+test('los bots conservan las fichas también en nivel difícil', () => {
   const total = START_STACK * 4;
   for (let seed = 1; seed <= 10; seed += 1) {
     const rng = seededRng(seed * 131);
@@ -685,7 +719,7 @@ test('los bots conservan las fichas también en nivel duro', () => {
         rng,
         sims: 20,
         profile: ['tight', 'balanced', 'aggro'][index % 3],
-        level: 'duro',
+        level: 'dificil',
       });
       const result = applyAction(table, index, action);
       assert.equal(result.ok, true, `seed ${seed}: acción inválida ${action.type}`);
@@ -698,6 +732,101 @@ test('los bots conservan las fichas también en nivel duro', () => {
   }
 });
 
-test('TABLE_CAP existe y es un múltiplo de la ciega grande', () => {
-  assert.equal(TABLE_CAP % BB, 0);
+test('la entrada no tiene tope: se limita solo por el saldo', () => {
+  assert.equal(clampBuyIn(100000, 100000, 10), 100000);
+  assert.equal(clampBuyIn(250000, 100000, 10), 100000);
+  assert.equal(clampBuyIn(DEFAULT_BUY_IN, 1000, 10), DEFAULT_BUY_IN);
+  assert.equal(clampBuyIn(0, 100000, 10), MIN_BUY_IN_BLINDS * 10);
+  assert.equal(clampBuyIn(5, 1000, 10), MIN_BUY_IN_BLINDS * 10);
+  assert.equal(clampBuyIn(999, 1000, 100), 1000);
+  assert.equal(clampBuyIn(100, 500, 1000), 0);
+  assert.equal(suggestedBuyIn(100000, 10), SUGGESTED_BUY_IN_BLINDS * 10);
+  assert.equal(suggestedBuyIn(50000, 100), SUGGESTED_BUY_IN_BLINDS * 100);
+  assert.equal(suggestedBuyIn(500, 100), 500);
+});
+
+test('normalizeBigBlind solo acepta las ciegas de la lista', () => {
+  for (const bb of BIG_BLINDS) assert.equal(normalizeBigBlind(bb), bb);
+  assert.equal(normalizeBigBlind(500), BB);
+  assert.equal(normalizeBigBlind('100'), 100);
+});
+
+test('las ciegas altas redondean las subidas y conservan las fichas', () => {
+  const total = 100000 * 4;
+  const rng = seededRng(4242);
+  const table = createTable({ stack: 100000, sb: 5000, bb: 10000, dealer: 1 });
+  startHand(table, rng);
+  assert.equal(table.smallBlind, 5000);
+  assert.equal(table.bigBlind, 10000);
+
+  const options = raiseOptions(table, table.turn);
+  assert.ok(options);
+  assert.equal(options.raise.min % 5000, 0);
+  for (const preset of options.presets) {
+    assert.equal(preset.amount % 5000, 0, `${preset.label} ${preset.amount}`);
+  }
+
+  let guard = 0;
+  while (!table.settled && guard < 100) {
+    guard += 1;
+    const index = table.turn;
+    if (index === null) {
+      advance(table, rng);
+      continue;
+    }
+    const action = botAction(table, index, {
+      rng,
+      level: 'normal',
+      profile: ['tight', 'balanced', 'aggro'][index % 3],
+      sims: 25,
+    });
+    if (action.type === 'raise') {
+      assert.equal(action.amount % 5000, 0, `subida ${action.amount}`);
+    }
+    const result = applyAction(table, index, action);
+    assert.equal(result.ok, true, `acción inválida ${action.type}`);
+    advance(table, rng);
+  }
+
+  assert.equal(table.settled, true);
+  const chips = table.players.reduce((sum, player) => sum + player.stack, 0);
+  assert.equal(chips, total);
+  assert.equal(table.pot, 0);
+});
+
+test('con faroles en Sin los bots no farolean nunca', () => {
+  const post = botSpot({
+    hole: '9C 7D',
+    board: 'AS 8H 2C',
+    pot: 40,
+    currentBet: 0,
+    turn: 0,
+    folded: [false, false, true, true],
+  });
+
+  for (let seed = 1; seed <= 60; seed += 1) {
+    const action = botAction(post, 0, {
+      profile: 'aggro',
+      level: 'normal',
+      bluff: 'sin',
+      sims: 20,
+      rng: seededRng(seed),
+    });
+    assert.notEqual(action.intent, 'bluff', `postflop seed ${seed}`);
+    assert.notEqual(action.intent, 'semiBluff', `postflop seed ${seed}`);
+  }
+
+  for (let seed = 1; seed <= 60; seed += 1) {
+    const table = createTable();
+    startHand(table, seededRng(seed * 13));
+    const action = botAction(table, table.turn, {
+      profile: 'aggro',
+      level: 'normal',
+      bluff: 'sin',
+      sims: 20,
+      rng: seededRng(seed),
+    });
+    assert.notEqual(action.intent, 'bluff', `preflop seed ${seed}`);
+    assert.notEqual(action.intent, 'semiBluff', `preflop seed ${seed}`);
+  }
 });

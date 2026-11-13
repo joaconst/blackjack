@@ -11,14 +11,14 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.5` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.6` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
 ## Comandos
 
 ```bash
-npm test                       # 68 tests unitarios de los dos motores (node --test)
+npm test                       # 101 tests unitarios de los dos motores (node --test)
 npm start                      # npx serve . (el service worker necesita localhost o HTTPS)
 node --check js/app.js         # chequeo de sintaxis antes de commitear
 node --check js/poker.js
@@ -32,7 +32,8 @@ Las pruebas E2E con Playwright viven en `C:\Users\const\AppData\Local\Temp\openc
 `probe-raise2.cjs` panel de subida, `probe-poker-gestures.cjs` gestos y salto al
 final, `probe-bj-noscroll.cjs` bloqueo vertical y hojas del blackjack,
 `probe-beta-poker.cjs` fichas beta del póker y textos, `probe-bot-levels.cjs`
-niveles y charla de los bots, `visual.cjs` capturas, `probe-touch*.cjs` gestos).
+niveles, faroles y charla de los bots, `probe-v26-smoke.cjs` hoja Mesa, ciegas,
+entrada sin tope y 320×568, `visual.cjs` capturas, `probe-touch*.cjs` gestos).
 Son temporales: si se limpian, hay que rehacerlas.
 Playwright usa `channel: 'msedge'`, viewport 390×844 y 320×568, `isMobile` y
 `hasTouch`.
@@ -68,18 +69,19 @@ js/app.js             estado, DOM, persistencia, gestos, PWA
 js/poker.js           controlador del póker, turnos, bots, gestos y saldo compartido
 sw.js                 cache offline (subir CACHE en cada deploy)
 tests/engine.test.js  28 tests del blackjack
-tests/poker.test.js   40 tests del póker
+tests/poker.test.js   73 tests del póker
 ```
 
 - `state.hands` **no se persiste**: al recargar se vuelve a la fase de apuesta.
 - La mesa de póker sí se persiste en `poker.table.v1`; si recargás en medio de
   una mano, se reanuda. El neto se aplica al saldo recién al terminar (`applied`).
 - Persistencia: `blackjack.prefs.v1` (tema, sonido, gestos, `botLevel`,
-  `botTalk`, `game`) y `blackjack.progress.v1` (saldo, apuesta, último saldo
-  diario). El saldo es compartido entre los dos juegos; `game` vale
-  `'blackjack' | 'poker' | ''`. `savePrefs()` en los dos controladores conserva
-  las claves que no toca: no volver a escribirlo con un objeto fijo o se pierden
-  el nivel y la charla al cambiar de juego.
+  `botBluff`, `botTalk`, `bigBlind`, `buyIn`, `game`) y `blackjack.progress.v1`
+  (saldo, apuesta, último saldo diario). El saldo es compartido entre los dos
+  juegos; `game` vale `'blackjack' | 'poker' | ''`. `savePrefs()` en los dos
+  controladores conserva las claves que no toca: no volver a escribirlo con un
+  objeto fijo o se pierden el nivel, los faroles, la charla, las ciegas y la
+  entrada al cambiar de juego.
 - `index.html` redirige a `poker.html` si `game === 'poker'`; el póker guarda
   `game = 'blackjack'` antes de volver para no hacer ping-pong.
 - Clases de resultado: las cajas por mano (`.hand.is-win/.is-lose/.is-push`)
@@ -107,19 +109,34 @@ tests/poker.test.js   40 tests del póker
   de `js/app.js` (`makeChip`, `renderAddSheet`, `confirmAddFunds`) y usa
   `available()` para el saldo de la hoja, así no cuenta lo comprometido en la
   mano. Al confirmar se llama `saveProgress()` y `render()`.
-- Póker: ciegas $5/$10, cap por mano $300 (`TABLE_CAP`), bots con Monte Carlo
-  (`sims: 140`) y demoras de 620–1140 ms. El saldo disponible durante una mano es
-  `balance - (startStack - stack del jugador)`.
+- Póker: ciegas elegibles `$5/$10`, `$50/$100`, `$500/$1.000` y
+  `$5.000/$10.000` (`BIG_BLINDS`, ciega chica = grande / 2) y entrada elegible
+  por mano (`buyIn`, default `DEFAULT_BUY_IN = 300`, mínimo 10 ciegas grandes,
+  techo = saldo). **No hay tope de mesa.** Bots con Monte Carlo (`sims: 140`) y
+  demoras de 620–1140 ms. El saldo disponible durante una mano es
+  `balance - (startStack - stack del jugador)`. `startNewHand` usa
+  `clampBuyIn(state.buyIn, state.balance, state.bigBlind)` y
+  `createTable({ stack, sb: bb / 2, bb })`.
+- **Hoja Mesa (`#tableSheet`):** se abre con `#tableBtn` y se elige ciegas y
+  entrada con fichas (`CHIP_TIERS`), **Máximo** y **Limpiar**. `openTableSheet`
+  no cambia nada si hay una mano activa. `renderTableSheet` deshabilita las
+  ciegas que superan el saldo y calcula el mínimo con `MIN_BUY_IN_BLINDS`;
+  `chooseBlind` sugiere `suggestedBuyIn`; `confirmTable` guarda `bigBlind` y
+  `buyIn` con `savePrefs()`. La entrada se aplica desde la próxima mano.
 - Montos de subida: `raiseOptions`, `clampRaiseTarget` y `stepRaiseTarget` en
   `js/poker-engine.js` son la única fuente de verdad. El panel usa presets
   (mínima, ½ pozo, pozo, all in) y pasos de una ciega chica; reutilizar esas
   funciones si se agregan gestos de subida. El all-in siempre pide confirmación.
 - **Bots (`js/poker-engine.js`):** `BOT_PROFILES` tiene `tight` (Ana),
   `balanced` (Beto) y `aggro` (Caro); el controlador los reparte con
-  `BOT_PROFILES[(index - 1) % 3]`. `BOT_LEVELS` (`suave`/`normal`/`duro`) ajusta
-  agresión, farol, tightness y `mistake`; `resolveTraits(profile, level)` mezcla
-  las dos cosas y es lo único que leen las decisiones.
-  `botAction(table, index, { profile, level, rng, sims })` decide con
+  `BOT_PROFILES[(index - 1) % 3]`. `BOT_LEVELS` (`facil`/`normal`/`dificil`,
+  etiquetas Fácil/Normal/Difícil) ajusta agresión, farol, tightness y `mistake`;
+  `BOT_LEVEL_ALIASES` migra `suave → facil` y `duro → dificil` al leer prefs.
+  `BOT_BLUFF_LEVELS` (`sin` 0, `pocos` 0,5×, `normal` 1×, `muchos` 1,6×) es el
+  control de faroles; “Sin” apaga farol y semi-farol. `resolveTraits(profile,
+  level, bluff)` mezcla las tres cosas y es lo único que leen las decisiones;
+  deja `bluffFactor` para escalar los tiros preflop.
+  `botAction(table, index, { profile, level, bluff, rng, sims })` decide con
   `preflopScore`, `positionScore`, `boardTexture` y `drawInfo`; devuelve la acción
   con un `intent` (`value`, `bluff`, `semiBluff`, `draw`, `weak`) que
   `applyAction` usa solo para marcar `bluffing`, nunca para cambiar reglas.
@@ -133,8 +150,10 @@ tests/poker.test.js   40 tests del póker
 - **Charla:** `pickBotLine(intent, rng)` elige de `BOT_TALK` y miente en ~38% de
   los casos. El controlador usa su propio LCG (`talkRandom`) para no consumir
   `Math.random` ni cambiar las manos repartidas (`BOT_TALK_CHANCE = 0.22`,
+  `BOT_TALK_BLUFF_CHANCE = 0.45` cuando el intent es `bluff`/`semiBluff`,
   `BOT_TALK_MS = 1900`). La frase nunca tapa “Se retiró” ni “All in”: solo habla
-  el asiento sin etiqueta. Se limpia al terminar la mano o repartir.
+  el asiento sin etiqueta. Se limpia al terminar la mano o repartir. En el
+  showdown no se muestra ninguna etiqueta de farol.
 
 ## Seeds deterministas para E2E
 
@@ -150,7 +169,7 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
 ## Verificación antes de dar algo por terminado
 
 1. `node --check` de `js/app.js`, `js/poker.js`, `js/poker-engine.js` y `sw.js`.
-2. `npm test` → 68/68.
+2. `npm test` → 101/101 (28 de blackjack + 73 de póker).
 3. Playwright blackjack: victoria (244) y derrota (3) en mano única sin caja;
    split (18) conserva cajas redondeadas; capturas en 390×844 y 320×568; sin
    errores de consola. Comprobar que un swipe vertical sobre las fichas, el
@@ -171,7 +190,10 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
    (`probe-bot-levels.cjs`): los tres niveles, `aria-checked`, la pista, que se
    guarden al recargar y sobrevivan a ir al blackjack y volver, la charla y su
    interruptor, que la frase no tape retirado ni all in, que con la charla
-   apagada nadie hable, y el layout en 320×568.
+   apagada nadie hable, y el layout en 320×568. Probar la mesa de v2.6
+   (`probe-v26-smoke.cjs`): hoja Mesa, ciegas habilitadas por saldo, entrada con
+   fichas, Máximo/Limpiar, entrada de $100.000 sin tope, persistencia al cambiar
+   de juego, faroles Sin/Pocos/Normal/Muchos y layout en 320×568.
 5. Si se tocó interacción, probar gestos con touch real simulado (CDP
    `Input.dispatchTouchEvent`), no solo con clicks.
 6. Commit + push y confirmar que `HEAD` y `origin/main` coinciden.

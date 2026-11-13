@@ -5,11 +5,16 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 
 ## Verificación pendiente
 
-- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.4, subir
-      a v2.5 y confirmar que Ajustes muestra la versión nueva tras cerrar y
+- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.5, subir
+      a v2.6 y confirmar que Ajustes muestra la versión nueva tras cerrar y
       abrir la app.
 - [ ] Jugar unas manos con cada nivel de bots en un teléfono real y ajustar si
-      `duro` queda demasiado difícil o `suave` demasiado fácil.
+      Difícil queda demasiado difícil o Fácil demasiado fácil.
+- [ ] Probar las ciegas altas ($500/$1.000 y $5.000/$10.000) y una entrada grande
+      en un teléfono real: legibilidad, fichas y confirmación del all-in.
+- [ ] Sentir en la mesa las frecuencias de faroles (Pocos, Normal, Muchos) y
+      ajustar los multiplicadores si Muchos resulta demasiado o Pocos pasa
+      desapercibido.
 - [ ] Confirmar que la charla se lee bien en pantallas chicas y que el globo no
       tapa el estado del asiento en una mano larga con all-ins.
 - [ ] Confirmar en un teléfono real que deslizar arriba/abajo en el póker no
@@ -30,8 +35,10 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 - [ ] Evaluar una segunda variante de póker (por ejemplo, torneos cortos).
 - [ ] Evaluar perfiles de bots más marcados (por ejemplo, un maníaco que suba
       casi siempre) además de Ana tight, Beto equilibrado y Caro agresiva.
-- [x] Bots con niveles Suave/Normal/Duro, lectura de board, proyectos, faroles
+- [x] Bots con niveles Fácil/Normal/Difícil, lectura de board, proyectos, faroles
       y charla que puede mentir.
+- [x] Ciegas elegibles, entrada por mano sin tope y hoja Mesa con fichas.
+- [x] Control de faroles de Sin a Muchos y faroles más visibles en la charla.
 - [x] Agregar gestos de póker: retirarse, igualar/pasar, abrir la subida y ver el
       final después de retirarse.
 - [ ] Evaluar gestos para ajustar el monto de subida dentro del panel, reutilizando

@@ -74,13 +74,14 @@ disponible, sin contar lo comprometido en la mano.
 ## Póker
 
 Texas Hold'em contra **3 bots** (Ana, Beto y Caro). Vos y los bots arrancan con
-el mismo stack por mano: el menor entre tu saldo y **$300**.
+el mismo stack por mano: la entrada que elijas, **hasta tu saldo**, sin tope.
 
-- Ciegas de **$5/$10** y una sola mano por vez. La mesa no cobra rake.
+- Ciegas elegibles de **$5/$10**, **$50/$100**, **$500/$1.000** y
+  **$5.000/$10.000**, según tu saldo. Una sola mano por vez y la mesa no cobra rake.
 - Recibís dos cartas propias y hay cinco comunitarias: flop, turn y river.
 - En cada ronda podés **retirarte**, **pasar/igualar**, **subir** o ir **all in**.
   El panel de subida muestra cuánto igualás y cuánto subís, con presets
-  (mínima, ½ pozo, pozo y all in) y ajuste fino de **−$5 / +$5**. Mantené
+  (mínima, ½ pozo, pozo y all in) y ajuste fino de **una ciega chica**. Mantené
   presionado para acelerar. El all in pide confirmación.
 - Ganás con la mejor mano de cinco cartas o si todos los demás se retiran. Hay
   botes laterales cuando hay all-ins de distinto tamaño.
@@ -91,19 +92,46 @@ el mismo stack por mano: el menor entre tu saldo y **$300**.
   reanuda donde estaba. El saldo no cambia hasta que la mano termina.
 - No se puede cambiar de juego con una mano en curso.
 
+### Mesa: ciegas y entrada
+
+En el panel de inicio, tocá **Entrada / Ciegas** para abrir la hoja **Mesa** y
+elegir entre manos:
+
+- las **ciegas**, de `$5/$10` a `$5.000/$10.000`; las que no alcanza tu saldo
+  quedan deshabilitadas;
+- la **entrada**, con fichas de $10 a $100.000, **Máximo** para entrar con todo
+  el saldo y **Limpiar** para empezar de nuevo. El mínimo son 10 ciegas grandes.
+
+La elección se guarda y se aplica desde la próxima mano. Al cambiar de ciegas, la
+entrada se acomoda a 100 ciegas grandes o a todo tu saldo si no alcanza. Si tu
+saldo baja, al repartir se usa lo disponible. No hay tope de mesa: si tenés
+$100.000 podés entrar con $100.000.
+
 ### Nivel de los bots
 
 En **Ajustes → Nivel de los bots** elegís cómo juegan Ana, Beto y Caro. La
 elección queda guardada y no se pierde al cambiar de juego.
 
-- **Suave:** ven más manos, pagan de más y farolean poco. Ideal para probar.
+- **Fácil:** ven más manos, pagan de más y farolean poco. Ideal para probar.
 - **Normal:** mezclan valor y faroles, con decisiones más prolijas que antes.
-- **Duro:** rangos ajustados, más presión y faroles mejor elegidos.
+- **Difícil:** rangos ajustados, más presión y faroles mejor elegidos.
 
 Cada bot tiene su estilo: **Ana** juega tight, **Beto** equilibrado y **Caro**
 agresiva. Piensan la mano completa: rango preflop por posición, textura del
 board, proyectos y outs, y deciden cuándo apostar por valor, semi-farolear o
 farolear. No miran tus cartas.
+
+### Faroles
+
+En **Ajustes → Faroles** controlás cuánto mienten los bots:
+
+- **Sin:** no farolean ni semi-farolean; solo apuestan con mano hecha.
+- **Pocos:** la frecuencia anterior, más discreta.
+- **Normal:** faroles y semi-faroles repartidos. La mesa se anima.
+- **Muchos:** farolean seguido y con más confianza.
+
+Cuando un bot farolea tiene más probabilidad de comentar la mano, así que la
+mentira se puede leer sin carteles ni etiquetas.
 
 En la misma sección podés apagar la **charla en la mesa**. Cuando está activada,
 los bots comentan la mano en su asiento: a veces dicen la verdad y a veces
@@ -167,7 +195,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.5`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.6`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 
@@ -182,16 +210,20 @@ split (mismo valor, hasta 4 manos, ases y 21 post-split), liquidación por mano,
 doble, mazo, lógica del saldo diario y la pila de fichas (suma exacta, máximo de
 7 fichas y denominaciones disponibles según el saldo).
 
-Los tests de póker cubren el evaluador de 7 cartas con desempates, ciegas y
+Los tests de póker cubren el evaluador de 5, 6 o 7 cartas con desempates, ciegas y
 turnos, subidas mínimas, montos y presets de subida, cierre de calles, retiro,
 botes laterales, devolución de apuestas no igualadas, empates, equidad por Monte
 Carlo y una simulación de 25 manos que verifica que las fichas se conserven.
 
 Los bots tienen tests propios: textura del board, proyectos y outs, fuerza
-preflop y posición, rasgos por perfil y nivel, agresión con mano fuerte, farol
-head-up contra multiway, comparación entre nivel suave y duro, charla que puede
-mentir y una comprobación de que no leen las cartas de los rivales. También se
-simula una mano completa en nivel duro para verificar que las fichas cierren.
+preflop y posición, rasgos por perfil y nivel, migración de las claves viejas,
+agresión con mano fuerte, farol head-up contra multiway, comparación entre nivel
+Fácil y Difícil, control de faroles de Sin a Muchos (incluido que “Sin” nunca
+devuelva farol), charla que puede mentir y una comprobación de que no leen las
+cartas de los rivales. También se simula una mano completa en nivel Difícil y
+otra con ciegas altas para verificar que las fichas cierren y que las subidas se
+redondeen a la ciega chica. Hay tests de ciegas y entrada: sin tope de mesa, techo
+en el saldo, mínimo de 10 ciegas grandes y entrada sugerida de 100.
 
 Los gestos de la mesa y el salto al final se prueban aparte con Playwright y
 toque real simulado.

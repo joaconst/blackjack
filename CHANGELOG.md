@@ -4,6 +4,36 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.6] — 2026-11-13
+
+### Agregado
+- **Ciegas elegibles en el póker:** `$5/$10`, `$50/$100`, `$500/$1.000` y
+  `$5.000/$10.000`. La elección se guarda y las ciegas que no alcanza el saldo
+  quedan deshabilitadas.
+- **Hoja Mesa** en el panel de inicio: se eligen las ciegas y la **entrada** con
+  fichas, **Máximo** y **Limpiar**, entre manos. La entrada mínima son 10 ciegas
+  grandes; al cambiar de ciegas se sugiere 100 ciegas grandes.
+- **Entrada sin tope:** se puede entrar con todo el saldo (por ejemplo $100.000).
+  Se quitó el cap fijo de $300 por mano.
+- **Control de faroles** en Ajustes: **Sin**, **Pocos**, **Normal** y **Muchos**.
+  “Sin” apaga faroles y semi-faroles; el resto escala la frecuencia.
+
+### Cambiado
+- **Niveles de los bots:** pasan a llamarse **Fácil**, **Normal** y **Difícil**,
+  sin cambiar su fuerza. Las claves viejas `suave` y `duro` migran solas.
+- Los bots farolean **un poco más** y, cuando farolean, hablan más seguido
+  (~45% contra el 22% normal), así la mentira se nota sin carteles.
+- Las subidas se redondean a la **ciega chica de la mesa**, también con ciegas
+  altas.
+- Los faroles preflop ahora también respetan el control de frecuencia.
+
+### Corregido
+- La mesa de póker arranca con las ciegas y la entrada elegidas, y la entrada
+  guardada se recorta al saldo disponible al repartir.
+
+### Cambiado (versión)
+- `APP_VERSION = 'v2.6'`, `CACHE = 'blackjack-v2.6'`.
+
 ## [v2.5] — 2026-11-12
 
 ### Agregado

@@ -114,17 +114,18 @@
 
     <footer class="controls">
       <div class="panel" id="startPanel">
-        <div class="poker-meta">
-          <div>
-            <span class="bet__label">Mesa</span>
+        <button type="button" class="poker-meta" id="tableBtn" aria-haspopup="dialog">
+          <span class="poker-meta__item">
+            <span class="bet__label">Entrada</span>
             <strong class="bet__amount bet__amount--sm" id="tableInfo">$300</strong>
-          </div>
-          <div>
+          </span>
+          <span class="poker-meta__item">
             <span class="bet__label">Ciegas</span>
-            <strong class="bet__amount bet__amount--sm">$5/$10</strong>
-          </div>
-        </div>
-        <p class="poker-note" id="startNote">Vos contra 3 bots · Texas Hold'em</p>
+            <strong class="bet__amount bet__amount--sm" id="blindsInfo">$5/$10</strong>
+          </span>
+          <span class="poker-meta__edit">Cambiar</span>
+        </button>
+        <p class="poker-note" id="startNote">Vos contra 3 bots · ciegas $5/$10</p>
         <button type="button" class="btn btn--primary" id="startBtn">Repartir mano</button>
       </div>
 
@@ -186,9 +187,10 @@
           <h3>Cómo se juega</h3>
           <ul class="poker-rules">
             <li><strong>Texas Hold'em</strong> con 3 bots. Recibís dos cartas y hay cinco comunitarias.</li>
-            <li>Ciegas de <strong>$5/$10</strong>. Podés retirarte, pasar, igualar o subir en cada ronda.</li>
+            <li>Elegís las ciegas entre <strong>$5/$10</strong> y <strong>$5.000/$10.000</strong>, según tu saldo. Podés retirarte, pasar, igualar o subir en cada ronda.</li>
             <li>Ganás con la mejor mano de cinco cartas o si todos los demás se retiran.</li>
-            <li>En la mesa todos arrancan con el mismo stack: el menor entre tu saldo y $300.</li>
+            <li>En la mesa todos arrancan con el mismo stack: la entrada que elijas, hasta tu saldo.</li>
+            <li>Cambiás ciegas y entrada desde el panel de inicio, entre manos.</li>
             <li>Al terminar la mano, lo que ganaste o perdiste se suma a tu saldo.</li>
             <li>Si recargás en medio de una mano, la mesa se reanuda donde estaba.</li>
           </ul>
@@ -197,11 +199,21 @@
         <section class="sheet__section">
           <h3>Nivel de los bots</h3>
           <div class="bot-level" id="botLevel" role="radiogroup" aria-label="Nivel de los bots">
-            <button type="button" class="bot-level__btn" data-level="suave" role="radio" aria-checked="false">Suave</button>
+            <button type="button" class="bot-level__btn" data-level="facil" role="radio" aria-checked="false">Fácil</button>
             <button type="button" class="bot-level__btn" data-level="normal" role="radio" aria-checked="true">Normal</button>
-            <button type="button" class="bot-level__btn" data-level="duro" role="radio" aria-checked="false">Duro</button>
+            <button type="button" class="bot-level__btn" data-level="dificil" role="radio" aria-checked="false">Difícil</button>
           </div>
           <p class="sheet__text" id="botLevelHint">Mezclan valor y faroles. La mesa de siempre, con mejores decisiones.</p>
+
+          <h3 class="sheet__subhead">Faroles</h3>
+          <div class="bot-level bot-level--four" id="botBluff" role="radiogroup" aria-label="Faroles de los bots">
+            <button type="button" class="bot-level__btn" data-bluff="sin" role="radio" aria-checked="false">Sin</button>
+            <button type="button" class="bot-level__btn" data-bluff="pocos" role="radio" aria-checked="false">Pocos</button>
+            <button type="button" class="bot-level__btn" data-bluff="normal" role="radio" aria-checked="true">Normal</button>
+            <button type="button" class="bot-level__btn" data-bluff="muchos" role="radio" aria-checked="false">Muchos</button>
+          </div>
+          <p class="sheet__text" id="botBluffHint">Faroles y semi-faroles repartidos. La mesa se anima.</p>
+
           <div class="pref">
             <div class="pref__text">
               <p class="pref__title">Charla en la mesa</p>
@@ -305,6 +317,47 @@
 
         <button type="button" class="btn btn--primary" id="addConfirm" disabled>Agregar</button>
         <p class="sheet__foot">Solo para probar la beta</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet" id="tableSheet" hidden>
+    <div class="sheet__backdrop" data-close-table></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="tableTitle">
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="tableTitle">Mesa</h2>
+        <button type="button" class="icon-btn" id="tableClose" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sheet__body">
+        <div class="add-summary">
+          <span class="bet__label">Entrada</span>
+          <strong class="add-total" id="tableTotal">$300</strong>
+          <span class="add-after" id="tableAfter">Tenés $1.000</span>
+        </div>
+
+        <section class="sheet__section">
+          <h3>Ciegas</h3>
+          <div class="blind-grid" id="blindGrid" role="radiogroup" aria-label="Ciegas"></div>
+          <p class="sheet__text" id="blindHint">La ciega chica y la grande se ponen al repartir.</p>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Entrada</h3>
+          <p class="sheet__text" id="tableMinHint">Mínimo $100 · máximo $1.000</p>
+          <div class="chips chips--rail" id="tableChips" role="group" aria-label="Fichas para la entrada"></div>
+          <div class="add-tools">
+            <button type="button" class="link-btn" id="tableMax">Máximo</button>
+            <button type="button" class="link-btn" id="tableClear">Limpiar</button>
+          </div>
+          <button type="button" class="btn btn--primary" id="tableConfirm">Entrar con $300</button>
+        </section>
+
+        <p class="sheet__foot">Se aplica desde la próxima mano</p>
       </div>
     </div>
   </div>

@@ -11,32 +11,40 @@ import {
   formatMoney,
 } from './engine.js';
 import {
-  BB,
+  BIG_BLINDS,
+  BOT_BLUFF_LEVELS,
   BOT_LEVELS,
-  TABLE_CAP,
+  DEFAULT_BUY_IN,
+  MIN_BUY_IN_BLINDS,
   applyAction,
   advance as advanceTable,
   botAction,
+  clampBuyIn,
   clampRaiseTarget,
   createTable,
   legalActions,
+  normalizeBigBlind,
+  normalizeBluffLevel,
+  normalizeBotLevel,
   normalizeTable,
   pickBotLine,
   raiseOptions,
   startHand as beginHand,
   stepRaiseTarget,
+  suggestedBuyIn,
 } from './poker-engine.js';
 import { sound, unlockSoundOnGesture } from './sound.js';
 
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.5';
+const APP_VERSION = 'v2.6';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 // Ana juega tight, Beto balanced y Caro aggro.
 const BOT_PROFILES = ['tight', 'balanced', 'aggro'];
 const BOT_TALK_CHANCE = 0.22;
+const BOT_TALK_BLUFF_CHANCE = 0.45;
 const BOT_TALK_MS = 1900;
 const BOT_DELAY_MIN = 620;
 const BOT_DELAY_MAX = 1140;
@@ -73,7 +81,9 @@ const els = {
   startPanel: document.getElementById('startPanel'),
   startBtn: document.getElementById('startBtn'),
   startNote: document.getElementById('startNote'),
+  tableBtn: document.getElementById('tableBtn'),
   tableInfo: document.getElementById('tableInfo'),
+  blindsInfo: document.getElementById('blindsInfo'),
   actionPanel: document.getElementById('actionPanel'),
   actionRow: document.getElementById('actionRow'),
   foldBtn: document.getElementById('foldBtn'),
@@ -99,6 +109,8 @@ const els = {
   gesturesValue: document.getElementById('gesturesValue'),
   botLevel: document.getElementById('botLevel'),
   botLevelHint: document.getElementById('botLevelHint'),
+  botBluff: document.getElementById('botBluff'),
+  botBluffHint: document.getElementById('botBluffHint'),
   botTalkBtn: document.getElementById('botTalkBtn'),
   botTalkValue: document.getElementById('botTalkValue'),
   themeColor: document.getElementById('themeColor'),
@@ -125,6 +137,17 @@ const els = {
   addUndo: document.getElementById('addUndo'),
   addClear: document.getElementById('addClear'),
   addConfirm: document.getElementById('addConfirm'),
+  tableSheet: document.getElementById('tableSheet'),
+  tableClose: document.getElementById('tableClose'),
+  tableTotal: document.getElementById('tableTotal'),
+  tableAfter: document.getElementById('tableAfter'),
+  blindGrid: document.getElementById('blindGrid'),
+  blindHint: document.getElementById('blindHint'),
+  tableMinHint: document.getElementById('tableMinHint'),
+  tableChips: document.getElementById('tableChips'),
+  tableMax: document.getElementById('tableMax'),
+  tableClear: document.getElementById('tableClear'),
+  tableConfirm: document.getElementById('tableConfirm'),
 };
 
 /* ---------- Almacenamiento ---------- */
@@ -162,8 +185,14 @@ const state = {
     storedPrefs.theme === 'light' || storedPrefs.theme === 'dark' ? storedPrefs.theme : 'auto',
   sound: typeof storedPrefs.sound === 'boolean' ? storedPrefs.sound : true,
   gestures: typeof storedPrefs.gestures === 'boolean' ? storedPrefs.gestures : true,
-  botLevel: BOT_LEVELS[storedPrefs.botLevel] ? storedPrefs.botLevel : 'normal',
+  botLevel: normalizeBotLevel(storedPrefs.botLevel),
+  botBluff: normalizeBluffLevel(storedPrefs.botBluff),
   botTalk: typeof storedPrefs.botTalk === 'boolean' ? storedPrefs.botTalk : true,
+  bigBlind: normalizeBigBlind(storedPrefs.bigBlind),
+  buyIn:
+    Number.isFinite(storedPrefs.buyIn) && storedPrefs.buyIn > 0
+      ? Math.floor(storedPrefs.buyIn)
+      : DEFAULT_BUY_IN,
   table: null,
   busy: false,
   skipping: false,
@@ -193,7 +222,10 @@ function savePrefs() {
     sound: state.sound,
     gestures: state.gestures,
     botLevel: state.botLevel,
+    botBluff: state.botBluff,
     botTalk: state.botTalk,
+    bigBlind: state.bigBlind,
+    buyIn: state.buyIn,
     game: 'poker',
   });
 }
@@ -258,9 +290,9 @@ function applyGestures() {
 }
 
 const BOT_LEVEL_HINTS = {
-  suave: 'Juegan más sueltos, pagan de más y farolean poco.',
+  facil: 'Juegan más sueltos, pagan de más y farolean poco.',
   normal: 'Mezclan valor y faroles. La mesa de siempre, con mejores decisiones.',
-  duro: 'Rangos ajustados, más presión y faroles mejor elegidos.',
+  dificil: 'Rangos ajustados, más presión y faroles mejor elegidos.',
 };
 
 function applyBotLevel() {
@@ -271,6 +303,23 @@ function applyBotLevel() {
     button.setAttribute('aria-checked', String(active));
   }
   if (els.botLevelHint) els.botLevelHint.textContent = BOT_LEVEL_HINTS[state.botLevel];
+}
+
+const BOT_BLUFF_HINTS = {
+  sin: 'No farolean: solo apuestan con mano hecha.',
+  pocos: 'Farolean de vez en cuando y con cuidado.',
+  normal: 'Faroles y semi-faroles repartidos. La mesa se anima.',
+  muchos: 'Farolean seguido; prepárate para las mentiras.',
+};
+
+function applyBotBluff() {
+  if (!els.botBluff) return;
+  for (const button of els.botBluff.querySelectorAll('[data-bluff]')) {
+    const active = button.dataset.bluff === state.botBluff;
+    button.classList.toggle('is-on', active);
+    button.setAttribute('aria-checked', String(active));
+  }
+  if (els.botBluffHint) els.botBluffHint.textContent = BOT_BLUFF_HINTS[state.botBluff];
 }
 
 function applyBotTalk() {
@@ -447,14 +496,19 @@ function startNewHand() {
   state.lastNet = 0;
   clearTalk();
 
-  if (state.balance < BB) {
+  const bb = state.bigBlind;
+  if (state.balance < bb) {
     toast('No te alcanza para la ciega grande');
     return;
   }
 
-  const stack = Math.min(state.balance, TABLE_CAP);
+  const stack = clampBuyIn(state.buyIn, state.balance, bb);
+  if (stack < bb) {
+    toast('No te alcanza para entrar a esta mesa');
+    return;
+  }
   const dealer = ((state.table ? state.table.dealer : -1) + 1) % PLAYER_NAMES.length;
-  const table = createTable({ stack, dealer, names: PLAYER_NAMES });
+  const table = createTable({ stack, dealer, names: PLAYER_NAMES, sb: bb / 2, bb });
   beginHand(table);
   state.table = table;
   saveTable();
@@ -541,6 +595,7 @@ function scheduleBots() {
     const action = botAction(current, expected, {
       profile: BOT_PROFILES[(expected - 1) % BOT_PROFILES.length],
       level: state.botLevel,
+      bluff: state.botBluff,
       sims: 140,
     });
     let result = applyAction(current, expected, action);
@@ -599,6 +654,7 @@ function skipToEnd() {
       const action = botAction(table, index, {
         profile: BOT_PROFILES[(index - 1) % BOT_PROFILES.length],
         level: state.botLevel,
+        bluff: state.botBluff,
         sims: 140,
       });
       let result = applyAction(table, index, action);
@@ -667,7 +723,10 @@ function clearTalk() {
 
 function maybeTalk(index, intent) {
   if (!state.botTalk) return;
-  if (talkRandom() > BOT_TALK_CHANCE) return;
+  // Cuando farolea habla más: así la mentira se puede leer sin carteles.
+  const bluffing = intent === 'bluff' || intent === 'semiBluff';
+  const chance = bluffing ? BOT_TALK_BLUFF_CHANCE : BOT_TALK_CHANCE;
+  if (talkRandom() > chance) return;
 
   const line = pickBotLine(intent, talkRandom);
   state.talk = { index, text: line.text, tone: line.tone };
@@ -733,7 +792,7 @@ function render() {
   const table = state.table;
   if ((!table || table.settled) && state.talk) clearTalk();
   const info = resultInfo();
-  const committedNow = committed();
+  const bb = state.bigBlind;
 
   els.balance.textContent = money(available());
   els.youName.textContent = 'Vos';
@@ -759,29 +818,30 @@ function render() {
       'is-winner',
       Boolean(table.settled && table.result && table.result.winners.some((winner) => winner.index === 0)),
     );
-    els.tableInfo.textContent = money(table.startStack);
+    els.tableInfo.textContent = money(
+      table.settled ? clampBuyIn(state.buyIn, available(), bb) : table.startStack,
+    );
   } else {
     syncSlots(els.community, []);
     syncSlots(els.youCards, []);
     els.youStack.textContent = '—';
     els.youBet.textContent = '';
     els.youSeat.classList.remove('is-folded', 'is-turn');
-    els.tableInfo.textContent = money(Math.min(state.balance, TABLE_CAP));
+    els.tableInfo.textContent = money(clampBuyIn(state.buyIn, available(), bb));
   }
 
+  els.blindsInfo.textContent = `${money(bb / 2)}/${money(bb)}`;
   renderSeats();
 
   const idle = !table || table.settled;
-  const noFunds = idle && available() < BB;
+  const noFunds = idle && available() < bb;
 
   els.startPanel.hidden = !idle || noFunds;
   els.actionPanel.hidden = idle;
   els.noFundsPanel.hidden = !noFunds;
-  els.startBtn.disabled = available() < BB;
+  els.startBtn.disabled = available() < bb;
   els.startBtn.textContent = table && table.settled ? 'Otra mano' : 'Repartir mano';
-  els.startNote.textContent = table
-    ? `Vos contra 3 bots · ciegas $5/$10`
-    : 'Vos contra 3 bots · Texas Hold\'em';
+  els.startNote.textContent = `Vos contra 3 bots · ciegas ${money(bb / 2)}/${money(bb)}`;
 
   if (info) {
     els.result.hidden = false;
@@ -1196,7 +1256,7 @@ function openAddSheet() {
 
 function closeAddSheet() {
   els.addSheet.hidden = true;
-  if (els.sheet.hidden) document.body.classList.remove('has-sheet');
+  if (els.sheet.hidden && els.tableSheet.hidden) document.body.classList.remove('has-sheet');
   if (lastFocusedAdd && typeof lastFocusedAdd.focus === 'function') {
     lastFocusedAdd.focus({ preventScroll: true });
   }
@@ -1228,6 +1288,143 @@ function confirmAddFunds() {
   toast(`Agregaste ${money(addAmount)}`);
   if (state.sound) sound.play('unlockTier');
   closeAddSheet();
+}
+
+/* ---------- Hoja de mesa: ciegas y entrada ---------- */
+
+let tableDraft = { bb: 10, entry: DEFAULT_BUY_IN };
+let lastFocusedTable = null;
+
+function makeEntryChip(value) {
+  const node = document.createElement('button');
+  node.type = 'button';
+  node.setAttribute('aria-label', `Entrada de ${money(value)}`);
+  node.className = `chip chip--${value}`;
+  node.dataset.value = String(value);
+
+  const inner = document.createElement('span');
+  inner.textContent = chipLabel(value);
+  node.append(inner);
+  return node;
+}
+
+function buildTableChips() {
+  els.tableChips.replaceChildren(...CHIP_TIERS.map((value) => makeEntryChip(value)));
+}
+
+function buildBlindGrid() {
+  els.blindGrid.replaceChildren(
+    ...BIG_BLINDS.map((bb) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'blind-btn';
+      button.dataset.blind = String(bb);
+      button.setAttribute('role', 'radio');
+      button.setAttribute('aria-checked', 'false');
+      button.textContent = `${money(bb / 2)}/${money(bb)}`;
+      return button;
+    }),
+  );
+}
+
+function affordableBlind(base) {
+  const list = BIG_BLINDS.filter((bb) => bb <= base);
+  return list.length ? list[list.length - 1] : state.bigBlind;
+}
+
+function renderTableSheet() {
+  const base = available();
+  const bb = tableDraft.bb;
+  const min = Math.min(bb * MIN_BUY_IN_BLINDS, base);
+  const entry = Math.min(Math.max(0, tableDraft.entry), base);
+  const short = base < bb;
+
+  for (const button of els.blindGrid.children) {
+    const value = Number(button.dataset.blind);
+    const active = value === bb;
+    button.classList.toggle('is-on', active);
+    button.setAttribute('aria-checked', String(active));
+    button.disabled = base < value;
+  }
+
+  els.tableTotal.textContent = money(entry);
+  els.tableAfter.textContent = `Tenés ${money(base)}`;
+  els.tableMinHint.textContent = short
+    ? 'Tu saldo no llega para estas ciegas'
+    : `Mínimo ${money(min)} · máximo ${money(base)}`;
+
+  for (const chip of els.tableChips.children) {
+    const value = Number(chip.dataset.value);
+    chip.disabled = value > base - entry;
+  }
+
+  const ready = !short && entry >= min && entry <= base;
+  els.tableConfirm.disabled = !ready;
+  els.tableConfirm.textContent = ready ? `Entrar con ${money(entry)}` : 'Elegí la entrada';
+  els.tableMax.disabled = short || entry >= base;
+  els.tableClear.disabled = entry <= 0;
+}
+
+function openTableSheet() {
+  const table = state.table;
+  if (table && !table.settled) {
+    toast('Terminá la mano para cambiar la mesa');
+    return;
+  }
+  lastFocusedTable = document.activeElement;
+  const base = available();
+  const bb = base >= state.bigBlind ? state.bigBlind : affordableBlind(base);
+  tableDraft = {
+    bb,
+    entry: clampBuyIn(state.buyIn, base, bb),
+  };
+  renderTableSheet();
+  els.tableSheet.hidden = false;
+  document.body.classList.add('has-sheet');
+  els.tableClose.focus({ preventScroll: true });
+}
+
+function closeTableSheet() {
+  els.tableSheet.hidden = true;
+  if (els.sheet.hidden && els.addSheet.hidden) document.body.classList.remove('has-sheet');
+  if (lastFocusedTable && typeof lastFocusedTable.focus === 'function') {
+    lastFocusedTable.focus({ preventScroll: true });
+  }
+}
+
+function chooseBlind(value) {
+  const bb = Number(value);
+  if (!BIG_BLINDS.includes(bb) || bb === tableDraft.bb) return;
+  tableDraft.bb = bb;
+  tableDraft.entry = suggestedBuyIn(available(), bb);
+  if (state.sound) sound.play('tick');
+  renderTableSheet();
+}
+
+function addEntryChip(value) {
+  if (!Number.isFinite(value) || value <= 0) return;
+  if (value > available() - tableDraft.entry) return;
+  tableDraft.entry += value;
+  if (state.sound) sound.play('chip', { index: chipIndex(value) });
+  renderTableSheet();
+}
+
+function confirmTable() {
+  const base = available();
+  const bb = tableDraft.bb;
+  const stack = clampBuyIn(tableDraft.entry, base, bb);
+  if (base < bb || stack < bb) {
+    toast('No te alcanza para entrar a esta mesa');
+    return;
+  }
+
+  state.bigBlind = bb;
+  state.buyIn = stack;
+  savePrefs();
+  closeTableSheet();
+  render();
+  toast(`Mesa ${money(bb / 2)}/${money(bb)} · entrada ${money(stack)}`);
+  if (state.sound) sound.play('unlockTier');
 }
 
 function switchGame() {
@@ -1551,6 +1748,22 @@ if (els.botLevel) {
   });
 }
 
+if (els.botBluff) {
+  els.botBluff.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-bluff]');
+    if (!button) return;
+    const level = button.dataset.bluff;
+    if (!(level in BOT_BLUFF_LEVELS) || level === state.botBluff) return;
+    state.botBluff = level;
+    applyBotBluff();
+    savePrefs();
+    if (state.sound) sound.play('toggle');
+    toast(
+      level === 'sin' ? 'Los bots ya no farolean' : `Faroles en nivel ${button.textContent.trim()}`,
+    );
+  });
+}
+
 if (els.botTalkBtn) {
   els.botTalkBtn.addEventListener('click', () => {
     state.botTalk = !state.botTalk;
@@ -1585,6 +1798,32 @@ els.addChips.addEventListener('click', (event) => {
 els.addSheet.addEventListener('click', (event) => {
   if (event.target.closest('[data-close-add]')) closeAddSheet();
 });
+els.tableBtn.addEventListener('click', openTableSheet);
+els.tableClose.addEventListener('click', closeTableSheet);
+els.tableSheet.addEventListener('click', (event) => {
+  if (event.target.closest('[data-close-table]')) closeTableSheet();
+});
+els.blindGrid.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-blind]');
+  if (!button || button.disabled) return;
+  chooseBlind(button.dataset.blind);
+});
+els.tableChips.addEventListener('click', (event) => {
+  const chip = event.target.closest('.chip');
+  if (!chip || chip.disabled) return;
+  addEntryChip(Number(chip.dataset.value));
+});
+els.tableMax.addEventListener('click', () => {
+  tableDraft.entry = available();
+  if (state.sound) sound.play('tick');
+  renderTableSheet();
+});
+els.tableClear.addEventListener('click', () => {
+  tableDraft.entry = 0;
+  if (state.sound) sound.play('tick');
+  renderTableSheet();
+});
+els.tableConfirm.addEventListener('click', confirmTable);
 els.noFundsRulesBtn.addEventListener('click', () => openSheet());
 els.switchGameBtn.addEventListener('click', switchGame);
 els.installBtn.addEventListener('click', promptInstall);
@@ -1609,7 +1848,8 @@ els.resetGo.addEventListener('click', () => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
-  if (!els.addSheet.hidden) closeAddSheet();
+  if (!els.tableSheet.hidden) closeTableSheet();
+  else if (!els.addSheet.hidden) closeAddSheet();
   else if (!els.sheet.hidden) closeSheet();
 });
 
@@ -1636,9 +1876,12 @@ applyTheme();
 applySound();
 applyGestures();
 applyBotLevel();
+applyBotBluff();
 applyBotTalk();
 buildBoard();
 buildAddChips();
+buildTableChips();
+buildBlindGrid();
 unlockSoundOnGesture();
 savePrefs();
 
