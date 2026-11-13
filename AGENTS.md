@@ -11,7 +11,7 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.7` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.8` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
@@ -133,7 +133,8 @@ tests/poker.test.js   73 tests del póker
   etiquetas Fácil/Normal/Difícil) ajusta agresión, farol, tightness y `mistake`;
   `BOT_LEVEL_ALIASES` migra `suave → facil` y `duro → dificil` al leer prefs.
   `BOT_BLUFF_LEVELS` (`sin` 0, `pocos` 0,5×, `normal` 1×, `muchos` 1,6×) es el
-  control de faroles; “Sin” apaga farol y semi-farol. `resolveTraits(profile,
+  control de faroles; la opción `sin` se muestra como **“Nunca”** y apaga farol
+  y semi-farol. `resolveTraits(profile,
   level, bluff)` mezcla las tres cosas y es lo único que leen las decisiones;
   deja `bluffFactor` para escalar los tiros preflop.
   `botAction(table, index, { profile, level, bluff, rng, sims })` decide con
@@ -156,6 +157,10 @@ tests/poker.test.js   73 tests del póker
   sigue en `.seat__state`. Nunca tapa “Se retiró” ni “All in”: solo habla el
   asiento sin etiqueta. Se limpia al terminar la mano o repartir. En el showdown
   no se muestra ninguna etiqueta de farol.
+- **Ajustes del póker:** el orden es Nivel de los bots → Charla (switch, con
+  `.pref--gap`) → Faroles. La charla va antes a propósito: apagarla solo silencia
+  comentarios, mientras que “Nunca” apaga el farol en el juego. No son el mismo
+  eje, no fusionar los controles.
 
 ## Seeds deterministas para E2E
 

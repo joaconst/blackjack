@@ -780,8 +780,16 @@
   font-size: 11px;
 }
 
-.sheet__subhead {
-  margin-top: 16px;
+/* `.sheet__section h3` define `margin: 0`, así que el subtítulo necesita más
+   especificidad para separarse del bloque anterior. */
+.sheet__section h3.sheet__subhead {
+  margin-top: 20px;
+}
+
+/* La charla va antes de los faroles: se separa de la grilla de nivel para que
+   no se lea como una opción más de la lista. */
+.pref--gap {
+  margin-top: 12px;
 }
 
 /* ---------- Hoja de mesa ---------- */

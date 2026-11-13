@@ -38,7 +38,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.7';
+const APP_VERSION = 'v2.8';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 // Ana juega tight, Beto balanced y Caro aggro.
@@ -306,7 +306,7 @@ function applyBotLevel() {
 }
 
 const BOT_BLUFF_HINTS = {
-  sin: 'No farolean: solo apuestan con mano hecha.',
+  sin: 'Nunca farolean: solo apuestan con mano hecha.',
   pocos: 'Farolean de vez en cuando y con cuidado.',
   normal: 'Faroles y semi-faroles repartidos. La mesa se anima.',
   muchos: 'Farolean seguido; prepárate para las mentiras.',

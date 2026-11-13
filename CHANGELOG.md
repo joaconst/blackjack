@@ -4,6 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.8] — 2026-11-13
+
+### Cambiado
+- **Ajustes de los bots más claros:** la charla en la mesa pasa arriba de los
+  faroles, como bloque propio, y “Sin” se llama ahora **“Nunca”**. La clave
+  interna sigue siendo `sin`, así que las preferencias guardadas no cambian.
+- `APP_VERSION = 'v2.8'`, `CACHE = 'blackjack-v2.8'`.
+
 ## [v2.7] — 2026-11-13
 
 ### Mejorado

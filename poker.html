@@ -205,16 +205,7 @@
           </div>
           <p class="sheet__text" id="botLevelHint">Mezclan valor y faroles. La mesa de siempre, con mejores decisiones.</p>
 
-          <h3 class="sheet__subhead">Faroles</h3>
-          <div class="bot-level bot-level--four" id="botBluff" role="radiogroup" aria-label="Faroles de los bots">
-            <button type="button" class="bot-level__btn" data-bluff="sin" role="radio" aria-checked="false">Sin</button>
-            <button type="button" class="bot-level__btn" data-bluff="pocos" role="radio" aria-checked="false">Pocos</button>
-            <button type="button" class="bot-level__btn" data-bluff="normal" role="radio" aria-checked="true">Normal</button>
-            <button type="button" class="bot-level__btn" data-bluff="muchos" role="radio" aria-checked="false">Muchos</button>
-          </div>
-          <p class="sheet__text" id="botBluffHint">Faroles y semi-faroles repartidos. La mesa se anima.</p>
-
-          <div class="pref">
+          <div class="pref pref--gap">
             <div class="pref__text">
               <p class="pref__title">Charla en la mesa</p>
               <p class="sheet__text">Los bots comentan la mano. A veces mienten.</p>
@@ -224,6 +215,15 @@
               <span class="switch__value" id="botTalkValue">Activada</span>
             </button>
           </div>
+
+          <h3 class="sheet__subhead">Faroles</h3>
+          <div class="bot-level bot-level--four" id="botBluff" role="radiogroup" aria-label="Faroles de los bots">
+            <button type="button" class="bot-level__btn" data-bluff="sin" role="radio" aria-checked="false">Nunca</button>
+            <button type="button" class="bot-level__btn" data-bluff="pocos" role="radio" aria-checked="false">Pocos</button>
+            <button type="button" class="bot-level__btn" data-bluff="normal" role="radio" aria-checked="true">Normal</button>
+            <button type="button" class="bot-level__btn" data-bluff="muchos" role="radio" aria-checked="false">Muchos</button>
+          </div>
+          <p class="sheet__text" id="botBluffHint">Faroles y semi-faroles repartidos. La mesa se anima.</p>
         </section>
 
         <section class="sheet__section">
