@@ -40,10 +40,84 @@ const RANK_VALUE = {
 };
 
 export const BOT_PROFILES = {
-  tight: { aggression: 0.32, tightness: 0.14, bluff: 0.025 },
-  balanced: { aggression: 0.52, tightness: 0.04, bluff: 0.06 },
-  aggro: { aggression: 0.78, tightness: -0.05, bluff: 0.12 },
+  tight: {
+    aggression: 0.34,
+    tightness: 0.16,
+    bluff: 0.05,
+    semiBluff: 0.3,
+    cbet: 0.55,
+    barrel: 0.25,
+    trap: 0.3,
+    callMargin: 0.07,
+  },
+  balanced: {
+    aggression: 0.54,
+    tightness: 0.04,
+    bluff: 0.11,
+    semiBluff: 0.48,
+    cbet: 0.68,
+    barrel: 0.38,
+    trap: 0.2,
+    callMargin: 0.05,
+  },
+  aggro: {
+    aggression: 0.8,
+    tightness: -0.04,
+    bluff: 0.21,
+    semiBluff: 0.66,
+    cbet: 0.78,
+    barrel: 0.55,
+    trap: 0.1,
+    callMargin: 0.03,
+  },
 };
+
+// El nivel elegido en Ajustes ajusta los rasgos del perfil. "Suave" juega
+// más suelto y se equivoca; "duro" ajusta rangos, presiona y casi no regala.
+export const BOT_LEVELS = {
+  suave: {
+    label: 'Suave',
+    aggression: 0.72,
+    bluff: 0.55,
+    semiBluff: 0.7,
+    tightness: -0.05,
+    mistake: 0.07,
+  },
+  normal: {
+    label: 'Normal',
+    aggression: 1,
+    bluff: 1,
+    semiBluff: 1,
+    tightness: 0,
+    mistake: 0.02,
+  },
+  duro: {
+    label: 'Duro',
+    aggression: 1.12,
+    bluff: 1.25,
+    semiBluff: 1.15,
+    tightness: 0.02,
+    mistake: 0,
+  },
+};
+
+function clamp(value, min = 0, max = 1) {
+  return Math.max(min, Math.min(max, value));
+}
+
+export function resolveTraits(profile, level = 'normal') {
+  const base = BOT_PROFILES[profile] || BOT_PROFILES.balanced;
+  const mod = BOT_LEVELS[level] || BOT_LEVELS.normal;
+  return {
+    ...base,
+    aggression: clamp(base.aggression * mod.aggression),
+    tightness: base.tightness + mod.tightness,
+    bluff: base.bluff * mod.bluff,
+    semiBluff: clamp(base.semiBluff * mod.semiBluff),
+    mistake: mod.mistake,
+    level: BOT_LEVELS[level] ? level : 'normal',
+  };
+}
 
 /* ---------- Cartas y evaluación ---------- */
 
@@ -111,27 +185,35 @@ export function scoreName(score) {
   return CATEGORY_NAMES[score[0]] || 'Carta alta';
 }
 
-const COMBOS_7 = (() => {
+function combinations(size) {
   const out = [];
-  for (let a = 0; a < 7; a += 1) {
-    for (let b = a + 1; b < 7; b += 1) {
-      for (let c = b + 1; c < 7; c += 1) {
-        for (let d = c + 1; d < 7; d += 1) {
-          for (let e = d + 1; e < 7; e += 1) out.push([a, b, c, d, e]);
-        }
-      }
+  const pick = (start, combo) => {
+    if (combo.length === 5) {
+      out.push(combo.slice());
+      return;
     }
-  }
+    for (let index = start; index < size; index += 1) {
+      combo.push(index);
+      pick(index + 1, combo);
+      combo.pop();
+    }
+  };
+  pick(0, []);
   return out;
-})();
+}
 
-/** Mejor mano de 5 entre las 7 disponibles. Devuelve el puntaje y las cartas. */
+const COMBOS_5 = combinations(5);
+const COMBOS_6 = combinations(6);
+const COMBOS_7 = combinations(7);
+
+/** Mejor mano de 5 entre las disponibles (5, 6 o 7 cartas). */
 export function bestHand(cards) {
   if (cards.length < 5) return { score: [0, 0], cards: cards.slice(), name: CATEGORY_NAMES[0] };
+  const source = cards.slice(0, 7);
+  const combos = source.length === 5 ? COMBOS_5 : source.length === 6 ? COMBOS_6 : COMBOS_7;
   let best = null;
   let bestCards = null;
-  const source = cards.slice(0, 7);
-  for (const combo of COMBOS_7) {
+  for (const combo of combos) {
     const five = combo.map((index) => source[index]);
     const score = evaluate5(five);
     if (!best || compareScores(score, best) > 0) {
@@ -197,6 +279,8 @@ export function createTable({
     showdown: false,
     result: null,
     lastPot: 0,
+    lastAggressor: null,
+    raisesThisStreet: 0,
     players: names.map((name, index) => ({
       name,
       isYou: index === 0,
@@ -207,6 +291,9 @@ export function createTable({
       bet: 0,
       total: 0,
       acted: false,
+      raises: 0,
+      lastAction: '',
+      bluffing: false,
       handName: '',
       bestScore: null,
     })),
@@ -245,6 +332,8 @@ export function startHand(table, rng = Math.random) {
   table.showdown = false;
   table.result = null;
   table.lastPot = 0;
+  table.lastAggressor = null;
+  table.raisesThisStreet = 0;
   table.street = 'preflop';
 
   for (const player of table.players) {
@@ -255,6 +344,9 @@ export function startHand(table, rng = Math.random) {
     player.bet = 0;
     player.total = 0;
     player.acted = false;
+    player.raises = 0;
+    player.lastAction = '';
+    player.bluffing = false;
     player.handName = '';
     player.bestScore = null;
   }
@@ -412,22 +504,35 @@ export function applyAction(table, index, action) {
   if (!legal) return { ok: false, error: 'not-your-turn' };
 
   const type = action && action.type;
+  const intent = action && typeof action.intent === 'string' ? action.intent : '';
+  const player = table.players[index];
+
   if (type === 'fold') {
-    table.players[index].folded = true;
-    table.players[index].acted = true;
+    player.folded = true;
+    player.acted = true;
+    player.lastAction = 'fold';
+    player.bluffing = false;
   } else if (type === 'check') {
     if (!legal.check) return { ok: false, error: 'cannot-check' };
-    table.players[index].acted = true;
+    player.acted = true;
+    player.lastAction = 'check';
   } else if (type === 'call') {
     if (legal.toCall === 0) {
-      table.players[index].acted = true;
+      player.acted = true;
+      player.lastAction = 'check';
     } else {
       resolveCall(table, index);
+      player.lastAction = 'call';
     }
   } else if (type === 'raise') {
-    resolveRaise(table, index, action.amount, legal);
+    const result = resolveRaise(table, index, action.amount, legal);
+    if (!result.ok) return result;
+    player.lastAction = 'raise';
+    player.raises = (player.raises || 0) + 1;
+    table.raisesThisStreet = (table.raisesThisStreet || 0) + 1;
+    table.lastAggressor = index;
+    player.bluffing = intent === 'bluff' || intent === 'semiBluff';
   } else if (type === 'allin') {
-    const player = table.players[index];
     const target = player.bet + player.stack;
     if (target > table.currentBet) {
       const step = Math.max(table.bigBlind, table.lastRaiseSize);
@@ -439,8 +544,14 @@ export function applyAction(table, index, action) {
         reopenAction(table, index);
       }
       player.acted = true;
+      player.lastAction = 'raise';
+      player.raises = (player.raises || 0) + 1;
+      table.raisesThisStreet = (table.raisesThisStreet || 0) + 1;
+      table.lastAggressor = index;
+      player.bluffing = intent === 'bluff' || intent === 'semiBluff';
     } else {
       resolveCall(table, index);
+      player.lastAction = 'call';
     }
   } else {
     return { ok: false, error: 'unknown-action' };
@@ -485,6 +596,7 @@ function resetStreet(table, street) {
   table.street = street;
   table.currentBet = 0;
   table.lastRaiseSize = table.bigBlind;
+  table.raisesThisStreet = 0;
   for (const player of table.players) {
     player.bet = 0;
     player.acted = false;
@@ -706,34 +818,486 @@ export function equity(table, index, { sims = 120, rng = Math.random } = {}) {
   return (win + tie / 2) / sims;
 }
 
-export function botAction(table, index, { rng = Math.random, profile = 'balanced', sims = 120 } = {}) {
+/* ---------- Lectura de la mesa ---------- */
+
+const CHEN_HIGH = {
+  14: 10,
+  13: 8,
+  12: 7,
+  11: 6,
+  10: 5,
+  9: 4.5,
+  8: 4,
+  7: 3.5,
+  6: 3,
+  5: 2.5,
+  4: 2,
+  3: 1.5,
+  2: 1,
+};
+
+/** Fuerza preflop normalizada (0-1), con bonus por posición. */
+export function preflopScore(hole, position = 0.5) {
+  if (!Array.isArray(hole) || hole.length < 2) return 0;
+  const [high, low] = hole.map((card) => RANK_VALUE[card.rank]).sort((a, b) => b - a);
+  const suited = hole[0].suit === hole[1].suit;
+  let score;
+
+  if (high === low) {
+    score = 0.38 + high / 24;
+  } else {
+    let raw = CHEN_HIGH[high] || 1;
+    if (suited) raw += 2;
+    const gap = high - low;
+    raw -= gap === 0 ? 0 : gap === 1 ? 1 : gap === 2 ? 2 : gap === 3 ? 3 : 4;
+    if (gap <= 1 && high < 12) raw += 1;
+    if (high >= 10 && low >= 10) raw += 2;
+    if (high === 14 && suited) raw += 1;
+    score = (raw + 4) / 24;
+  }
+
+  return clamp(score + (position - 0.5) * 0.06, 0, 1);
+}
+
+/** Posición relativa: 1 es el botón, 0.4 la ciega grande en una mesa de 4. */
+export function positionScore(table, index) {
+  const count = table.players.length;
+  if (!count) return 0.5;
+  const relative = (index - table.dealer + count) % count;
+  if (count === 2) return relative === 0 ? 0.65 : 0.45;
+  if (count === 4) {
+    if (relative === 0) return 1;
+    if (relative === 3) return 0.78;
+    if (relative === 1) return 0.55;
+    return 0.4;
+  }
+  return 1 - relative / count;
+}
+
+/** Textura del board: seco/húmedo, pareado, color posible y conectado. */
+export function boardTexture(board) {
+  if (!Array.isArray(board) || board.length === 0) {
+    return { wet: 0, dry: 1, paired: false, flushy: false, connected: false, high: 0, maxSuit: 0 };
+  }
+
+  const suitCounts = new Map();
+  const rankCounts = new Map();
+  for (const card of board) {
+    suitCounts.set(card.suit, (suitCounts.get(card.suit) || 0) + 1);
+    const value = RANK_VALUE[card.rank];
+    rankCounts.set(value, (rankCounts.get(value) || 0) + 1);
+  }
+
+  const maxSuit = Math.max(...suitCounts.values());
+  const ranks = [...rankCounts.keys()].sort((a, b) => b - a);
+  const paired = [...rankCounts.values()].some((count) => count >= 2);
+  let connected = false;
+  for (let i = 0; i + 2 < ranks.length; i += 1) {
+    if (ranks[i] - ranks[i + 2] <= 4) connected = true;
+  }
+
+  const high = ranks[0] || 0;
+  const flushy = maxSuit >= 3;
+  const wet = clamp(
+    (flushy ? 0.28 : 0) +
+      (connected ? 0.22 : 0) +
+      (paired ? 0.14 : 0) +
+      (high >= 12 ? 0.08 : 0),
+    0,
+    0.9,
+  );
+
+  return { wet, dry: 1 - wet, paired, flushy, connected, high, maxSuit };
+}
+
+/** Proyectos de la mano propia: color, escalera, overcards y outs aproximados. */
+export function drawInfo(hole, board) {
+  const empty = {
+    flushDraw: false,
+    backdoorFlush: false,
+    oesd: false,
+    gutshot: false,
+    overcards: 0,
+    combo: false,
+    outs: 0,
+    made: 0,
+  };
+  if (!Array.isArray(hole) || hole.length < 2) return empty;
+  if (!Array.isArray(board) || board.length < 3) return empty;
+
+  const all = [...hole, ...board];
+  const suitCounts = new Map();
+  const holeSuits = new Map();
+  for (const card of all) suitCounts.set(card.suit, (suitCounts.get(card.suit) || 0) + 1);
+  for (const card of hole) holeSuits.set(card.suit, (holeSuits.get(card.suit) || 0) + 1);
+
+  let flushDraw = false;
+  for (const [suit, count] of suitCounts) {
+    if (count === 4 && (holeSuits.get(suit) || 0) >= 1) flushDraw = true;
+  }
+
+  const boardSuits = new Map();
+  for (const card of board) boardSuits.set(card.suit, (boardSuits.get(card.suit) || 0) + 1);
+  const boardFlush = [...boardSuits.entries()].find(([, count]) => count >= 3);
+  const backdoorFlush =
+    board.length === 3 &&
+    Boolean(boardFlush) &&
+    (holeSuits.get(boardFlush[0]) || 0) >= 1 &&
+    !flushDraw;
+
+  const made = bestHand(all).score[0];
+  const rankSet = new Set(all.map((card) => RANK_VALUE[card.rank]));
+  const missing = new Set();
+  if (made < 4) {
+    for (let low = 1; low <= 10; low += 1) {
+      const window = [low, low + 1, low + 2, low + 3, low + 4];
+      const present = window.filter((value) => rankSet.has(value) || (value === 1 && rankSet.has(14)));
+      if (present.length === 4) {
+        const missingValue = window.find((value) => !present.includes(value));
+        missing.add(missingValue === 1 ? 14 : missingValue);
+      }
+    }
+  }
+
+  const oesd = missing.size >= 2;
+  const gutshot = missing.size === 1;
+  const boardHigh = Math.max(...board.map((card) => RANK_VALUE[card.rank]));
+  const overcards = hole.filter((card) => RANK_VALUE[card.rank] > boardHigh).length;
+  const combo = flushDraw && (oesd || gutshot);
+
+  let outs = 0;
+  if (flushDraw) outs += 9;
+  if (oesd) outs += 8;
+  else if (gutshot) outs += 4;
+  outs += overcards * 3;
+  if (backdoorFlush) outs += 1;
+
+  return {
+    flushDraw,
+    backdoorFlush,
+    oesd,
+    gutshot,
+    overcards,
+    combo,
+    outs: Math.min(outs, 15),
+    made,
+  };
+}
+
+/* ---------- Charla de los bots ---------- */
+
+export const BOT_TALK = {
+  value: ['Buena mano', 'Esto se paga', 'Voy con todo', 'Te tengo'],
+  bluff: ['Tengo el color', 'Te tengo', 'No te emociones', 'Esta mesa es mía'],
+  semiBluff: ['Me falta una', 'Voy por el proyecto', 'Todavía la pego'],
+  draw: ['Pago para ver', 'Me sirve el precio', 'Vamos a ver'],
+  weak: ['No me da', 'Me voy', 'Guarda que vuelvo', 'Paso'],
+};
+
+const TALK_TONES = Object.keys(BOT_TALK);
+
+/**
+ * Elige una frase corta. No siempre coincide con la intención real: a veces
+ * el bot miente para que no se le pueda leer la mano.
+ */
+export function pickBotLine(intent = 'weak', rng = Math.random) {
+  const key =
+    rng() < 0.62 && BOT_TALK[intent]
+      ? intent
+      : TALK_TONES[Math.floor(rng() * TALK_TONES.length)];
+  const lines = BOT_TALK[key];
+  return {
+    text: lines[Math.floor(rng() * lines.length)],
+    tone: key,
+  };
+}
+
+/* ---------- Decisiones ---------- */
+
+function preflopTarget(table, legal, { threeBet = false, rng = Math.random } = {}) {
+  let target;
+  if (threeBet) {
+    target = table.currentBet * (2.6 + rng() * 0.5);
+  } else {
+    const limpers = Math.max(
+      0,
+      table.players.filter(
+        (player) =>
+          !player.folded &&
+          player.bet >= table.bigBlind &&
+          player.bet <= table.currentBet,
+      ).length - 1,
+    );
+    target = table.bigBlind * (2.5 + rng() * 0.8) + limpers * table.bigBlind;
+  }
+  target = Math.round(target / SB) * SB;
+  return Math.max(legal.raise.min, Math.min(legal.raise.max, target));
+}
+
+function betAmount(table, legal, fraction, strong = false) {
+  const potAfterCall = table.pot + legal.toCall;
+  let target = table.currentBet + potAfterCall * fraction;
+  target = Math.round(target / SB) * SB;
+  target = Math.max(legal.raise.min, Math.min(legal.raise.max, target));
+
+  // Fuera de una mano fuerte no nos mandamos all-in sin querer.
+  if (!strong && target > legal.raise.max * 0.82) {
+    target = Math.max(legal.raise.min, Math.round((legal.raise.max * 0.55) / SB) * SB);
+  }
+  return target;
+}
+
+function preflopAction(table, index, { legal, traits, chance, position, rng }) {
+  const player = table.players[index];
+  const chen = preflopScore(player.hole, position);
+  const score = clamp(chen * 0.85 + chance * 0.15, 0, 1);
+  const toCall = legal.toCall;
+  const raised = table.currentBet > table.bigBlind;
+  const raises = table.raisesThisStreet || 0;
+  const canRaise = Boolean(legal.raise);
+  const cheap = toCall > 0 && toCall <= table.bigBlind * 1.5;
+  const openLine =
+    0.6 + traits.tightness * 0.25 - traits.aggression * 0.08 - (position - 0.5) * 0.16;
+  const callLine = openLine - 0.13;
+  const threeBetLine = 0.72 + traits.tightness * 0.1 - traits.aggression * 0.05;
+  const mistake = rng() < traits.mistake;
+
+  if (!raised) {
+    if (canRaise && score >= openLine) {
+      return { type: 'raise', amount: preflopTarget(table, legal, { rng }), intent: 'value' };
+    }
+    if (
+      canRaise &&
+      position > 0.72 &&
+      raises === 0 &&
+      score >= 0.32 &&
+      rng() < 0.35 + traits.aggression * 0.25
+    ) {
+      return { type: 'raise', amount: preflopTarget(table, legal, { rng }), intent: 'bluff' };
+    }
+    if (toCall === 0) return { type: 'check', intent: 'weak' };
+    if (score >= callLine || (cheap && (chen >= 0.25 || score >= 0.3))) {
+      return { type: 'call', intent: score >= 0.55 ? 'value' : 'draw' };
+    }
+    if (mistake) return { type: 'call', intent: 'weak' };
+    return { type: 'fold', intent: 'weak' };
+  }
+
+  if (raises >= 2 && score < 0.78) return { type: 'fold', intent: 'weak' };
+  if (canRaise && raises < 2 && score >= threeBetLine) {
+    return {
+      type: 'raise',
+      amount: preflopTarget(table, legal, { threeBet: true, rng }),
+      intent: 'value',
+    };
+  }
+  if (score >= threeBetLine - 0.12 && toCall <= player.stack * 0.12) {
+    return { type: 'call', intent: 'value' };
+  }
+  if (
+    canRaise &&
+    position > 0.7 &&
+    raises === 1 &&
+    score < callLine &&
+    rng() < traits.bluff * 0.8
+  ) {
+    return {
+      type: 'raise',
+      amount: preflopTarget(table, legal, { threeBet: true, rng }),
+      intent: 'bluff',
+    };
+  }
+  if (cheap && chen >= 0.35 && toCall <= player.stack * 0.08) {
+    return { type: 'call', intent: 'draw' };
+  }
+  if (score >= callLine - 0.04 && toCall <= player.stack * 0.1) {
+    return { type: 'call', intent: 'value' };
+  }
+  if (mistake) return { type: 'call', intent: 'weak' };
+  return { type: 'fold', intent: 'weak' };
+}
+
+export function botAction(
+  table,
+  index,
+  { rng = Math.random, profile = 'balanced', level = 'normal', sims = 120 } = {},
+) {
   const legal = legalActions(table, index);
   if (!legal) return { type: 'check' };
-  const traits = BOT_PROFILES[profile] || BOT_PROFILES.balanced;
+  const traits = resolveTraits(profile, level);
 
   if (!legal.raise && legal.toCall === 0) return { type: 'check' };
   if (!legal.raise) return { type: 'call' };
 
+  const player = table.players[index];
   const chance = equity(table, index, { sims, rng });
-  const pot = table.pot;
-  const potOdds = legal.toCall > 0 ? legal.toCall / (pot + legal.toCall) : 0;
-  const foldLine = potOdds + 0.06 + traits.tightness - traits.aggression * 0.04;
+  const rivals = Math.max(1, contenders(table).length - 1);
+  const position = positionScore(table, index);
+  const texture = boardTexture(table.board);
+  const draw = drawInfo(player.hole, table.board);
+  const toCall = legal.toCall;
+  const potOdds = toCall > 0 ? toCall / (table.pot + toCall) : 0;
+  const cheap = toCall > 0 && toCall <= table.bigBlind;
+  const canRaise = Boolean(legal.raise);
 
-  if (legal.toCall > 0 && chance < foldLine) {
-    const cheap = legal.toCall <= table.bigBlind && chance > 0.24;
-    if (!cheap) return { type: 'fold' };
+  if (table.street === 'preflop') {
+    return preflopAction(table, index, { legal, traits, chance, position, rng });
   }
 
-  const wantsRaise = chance > 0.66 + traits.tightness - traits.aggression * 0.1 || rng() < traits.bluff;
-  if (wantsRaise) {
-    const base = Math.max(table.bigBlind, Math.round(pot * (0.4 + rng() * 0.5)));
-    const target = Math.min(legal.raise.max, Math.max(legal.raise.min, table.currentBet + base));
-    const committed = target === legal.raise.max && target > table.currentBet;
-    if (!committed || chance > 0.72 || rng() < 0.2) {
-      return { type: 'raise', amount: target };
+  // El tiro de error siempre consume RNG: así dos niveles con la misma semilla
+  // parten de la misma secuencia y la comparación es justa.
+  const mistake = rng() < traits.mistake;
+  const foldLine =
+    potOdds +
+    traits.callMargin +
+    traits.tightness * 0.5 -
+    traits.aggression * 0.03 +
+    (rivals - 1) * 0.015;
+  const strongLine =
+    0.62 + (rivals - 1) * 0.04 + traits.tightness * 0.1 - traits.aggression * 0.03;
+  const monsterLine = 0.82 + (rivals - 1) * 0.02;
+  const isMonster = chance >= monsterLine || draw.made >= 6;
+  const isStrong = chance >= strongLine || draw.made >= 4;
+  const isMedium = chance >= 0.42;
+  const isAir = !isMedium && draw.outs === 0;
+
+  if (toCall > 0) {
+    if ((table.raisesThisStreet || 0) >= 2 && chance < 0.78 && draw.outs < 8) {
+      return { type: 'fold', intent: 'weak' };
+    }
+
+    if (chance < foldLine) {
+      const implied = draw.outs >= 8 ? 0.1 : draw.outs >= 4 ? 0.05 : 0;
+      const canDraw =
+        draw.outs >= 8 && table.street !== 'river' && toCall <= player.stack * 0.28;
+      if (canDraw && chance + implied >= foldLine - 0.05 && rng() < 0.7) {
+        return { type: 'call', intent: 'draw' };
+      }
+      if (cheap && chance > 0.24) return { type: 'call', intent: 'weak' };
+      if (
+        canRaise &&
+        rivals === 1 &&
+        texture.dry > 0.6 &&
+        rng() < traits.bluff * 0.45
+      ) {
+        return { type: 'raise', amount: betAmount(table, legal, 0.5), intent: 'bluff' };
+      }
+      if (mistake) return { type: 'call', intent: 'weak' };
+      return { type: 'fold', intent: 'weak' };
+    }
+
+    if (isMonster) {
+      if (rng() < traits.trap && table.street !== 'river') {
+        return { type: 'call', intent: 'value' };
+      }
+      return {
+        type: 'raise',
+        amount: betAmount(table, legal, 0.85 + rng() * 0.2, true),
+        intent: 'value',
+      };
+    }
+    if (isStrong) {
+      if (rng() < 0.55 + traits.aggression * 0.25) {
+        return {
+          type: 'raise',
+          amount: betAmount(table, legal, 0.65 + rng() * 0.2, true),
+          intent: 'value',
+        };
+      }
+      return { type: 'call', intent: 'value' };
+    }
+    if (isMedium) {
+      if (
+        canRaise &&
+        rivals === 1 &&
+        texture.dry > 0.55 &&
+        rng() < traits.bluff * 0.35
+      ) {
+        return { type: 'raise', amount: betAmount(table, legal, 0.5), intent: 'bluff' };
+      }
+      return { type: 'call', intent: 'value' };
+    }
+    if (draw.outs >= 4) {
+      if (canRaise && table.street !== 'river' && rng() < traits.semiBluff * 0.3) {
+        return {
+          type: 'raise',
+          amount: betAmount(table, legal, 0.55),
+          intent: 'semiBluff',
+        };
+      }
+      if (chance + 0.08 >= foldLine || toCall <= table.pot * 0.25) {
+        return { type: 'call', intent: 'draw' };
+      }
+    }
+    return { type: 'call', intent: 'value' };
+  }
+
+  if (isMonster) {
+    if (rng() < traits.trap && table.street !== 'river') {
+      return { type: 'check', intent: 'value' };
+    }
+    return {
+      type: 'raise',
+      amount: betAmount(table, legal, 0.7 + rng() * 0.2, true),
+      intent: 'value',
+    };
+  }
+  if (isStrong) {
+    return {
+      type: 'raise',
+      amount: betAmount(table, legal, 0.55 + rng() * 0.2, true),
+      intent: 'value',
+    };
+  }
+  if (isMedium) {
+    if (texture.wet > 0.5 && rng() < 0.3) {
+      return { type: 'raise', amount: betAmount(table, legal, 0.33), intent: 'value' };
+    }
+    return { type: 'check', intent: 'value' };
+  }
+  if (draw.outs >= 4) {
+    const semi = traits.semiBluff * (table.street === 'flop' ? 1 : 0.8);
+    if (rng() < semi) {
+      return {
+        type: 'raise',
+        amount: betAmount(table, legal, 0.5 + rng() * 0.15),
+        intent: 'semiBluff',
+      };
+    }
+    return { type: 'check', intent: 'draw' };
+  }
+  if (isAir) {
+    const canBluff =
+      rivals === 1 &&
+      texture.dry > 0.55 &&
+      position > 0.45 &&
+      table.street !== 'river';
+    const barrel = player.bluffing && table.lastAggressor === index;
+    const bluffChance = traits.bluff * (canBluff ? 1 : 0.15) * (barrel ? 1.25 : 1);
+    if (rng() < bluffChance) {
+      return {
+        type: 'raise',
+        amount: betAmount(table, legal, 0.45 + rng() * 0.15),
+        intent: 'bluff',
+      };
     }
   }
 
-  if (legal.toCall > 0) return { type: 'call' };
-  return { type: 'check' };
+  return { type: 'check', intent: 'weak' };
+}
+
+/* ---------- Migración de mesas guardadas ---------- */
+
+/** Completa los campos públicos que agregaron los bots en v2.5. */
+export function normalizeTable(table) {
+  if (!table || !Array.isArray(table.players)) return table;
+  if (table.lastAggressor === undefined) table.lastAggressor = null;
+  if (!Number.isFinite(table.raisesThisStreet)) table.raisesThisStreet = 0;
+  for (const player of table.players) {
+    if (!player) continue;
+    if (!Number.isFinite(player.raises)) player.raises = 0;
+    if (typeof player.lastAction !== 'string') player.lastAction = '';
+    if (typeof player.bluffing !== 'boolean') player.bluffing = false;
+  }
+  return table;
 }

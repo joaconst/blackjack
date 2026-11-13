@@ -4,6 +4,33 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.5] — 2026-11-12
+
+### Agregado
+- **Nivel de los bots** en Ajustes del póker: **Suave**, **Normal** y **Duro**. La
+  elección se guarda y sobrevive a recargas y al cambio de juego.
+- **Charla en la mesa:** los bots comentan la mano en su asiento. A veces la frase
+  coincide con lo que hacen y a veces mienten, para que no se les lea la mano. Se
+  puede apagar en Ajustes.
+
+### Mejorado
+- Los bots piensan la mano completa: rango preflop por posición, textura del
+  board, proyectos y outs, valor, semi-farol y farol. Ana juega tight, Beto
+  equilibrado y Caro agresiva.
+- Los bots registran quién subió y cuántas veces, así pueden insistir con el
+  farol o frenar cuando la mano se calienta. Ya no miran las cartas de los rivales.
+- Las subidas se dimensionan por bote y se redondean a la ciega chica para que los
+  montos queden prolijos.
+
+### Corregido
+- `bestHand` acepta 5, 6 o 7 cartas: antes el cálculo de proyectos en el flop
+  rompía la mano.
+- Al cambiar de juego, los ajustes del póker (nivel y charla) ya no se pierden:
+  cada guardado conserva las claves que no toca.
+
+### Cambiado
+- `APP_VERSION = 'v2.5'`, `CACHE = 'blackjack-v2.5'`.
+
 ## [v2.4] — 2026-11-12
 
 ### Agregado

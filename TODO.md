@@ -5,9 +5,13 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 
 ## Verificación pendiente
 
-- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.3, subir
-      a v2.4 y confirmar que Ajustes muestra la versión nueva tras cerrar y
+- [ ] Probar la actualización real de la PWA en un iPhone: instalar v2.4, subir
+      a v2.5 y confirmar que Ajustes muestra la versión nueva tras cerrar y
       abrir la app.
+- [ ] Jugar unas manos con cada nivel de bots en un teléfono real y ajustar si
+      `duro` queda demasiado difícil o `suave` demasiado fácil.
+- [ ] Confirmar que la charla se lee bien en pantallas chicas y que el globo no
+      tapa el estado del asiento en una mano larga con all-ins.
 - [ ] Confirmar en un teléfono real que deslizar arriba/abajo en el póker no
       mueve ni rebota la pantalla (en emulación no hay barra de URL ni rebote de
       iOS).
@@ -23,8 +27,11 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 - [ ] Mover los scripts de Playwright (`run8.cjs`, `run-poker.cjs`,
       `visual.cjs`, `probe-touch*.cjs`) al repo en `tests/e2e/` para no depender
       de la carpeta temporal, con un `npm run test:e2e` opcional.
-- [ ] Evaluar una segunda variante de póker (por ejemplo, torneos cortos) o más
-      perfiles de bots.
+- [ ] Evaluar una segunda variante de póker (por ejemplo, torneos cortos).
+- [ ] Evaluar perfiles de bots más marcados (por ejemplo, un maníaco que suba
+      casi siempre) además de Ana tight, Beto equilibrado y Caro agresiva.
+- [x] Bots con niveles Suave/Normal/Duro, lectura de board, proyectos, faroles
+      y charla que puede mentir.
 - [x] Agregar gestos de póker: retirarse, igualar/pasar, abrir la subida y ver el
       final después de retirarse.
 - [ ] Evaluar gestos para ajustar el monto de subida dentro del panel, reutilizando

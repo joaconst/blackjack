@@ -91,6 +91,24 @@ el mismo stack por mano: el menor entre tu saldo y **$300**.
   reanuda donde estaba. El saldo no cambia hasta que la mano termina.
 - No se puede cambiar de juego con una mano en curso.
 
+### Nivel de los bots
+
+En **Ajustes → Nivel de los bots** elegís cómo juegan Ana, Beto y Caro. La
+elección queda guardada y no se pierde al cambiar de juego.
+
+- **Suave:** ven más manos, pagan de más y farolean poco. Ideal para probar.
+- **Normal:** mezclan valor y faroles, con decisiones más prolijas que antes.
+- **Duro:** rangos ajustados, más presión y faroles mejor elegidos.
+
+Cada bot tiene su estilo: **Ana** juega tight, **Beto** equilibrado y **Caro**
+agresiva. Piensan la mano completa: rango preflop por posición, textura del
+board, proyectos y outs, y deciden cuándo apostar por valor, semi-farolear o
+farolear. No miran tus cartas.
+
+En la misma sección podés apagar la **charla en la mesa**. Cuando está activada,
+los bots comentan la mano en su asiento: a veces dicen la verdad y a veces
+mienten, así que no conviene fiarse.
+
 ### Gestos del póker
 
 Los gestos son un atajo opcional; los botones siguen siendo la vía principal y
@@ -115,7 +133,8 @@ Si tenés $500 o más, no se agrega nada. Si te quedás sin saldo después de us
 el bono del día, la pantalla de espera muestra cuánto falta para la medianoche.
 
 El progreso (saldo, apuesta, bono diario y última apuesta) se guarda aparte de
-las preferencias (tema, sonido, gestos, juego elegido y si ya viste la ayuda).
+las preferencias (tema, sonido, gestos, juego elegido, nivel y charla de los bots
+y si ya viste la ayuda).
 Reiniciar el progreso borra solo lo primero: el tema, el sonido y los ajustes se
 mantienen. La clave vieja `blackjack.state.v1` se migra automáticamente
 a `blackjack.progress.v1` y `blackjack.prefs.v1`.
@@ -148,7 +167,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.3`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.5`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 
@@ -167,6 +186,13 @@ Los tests de póker cubren el evaluador de 7 cartas con desempates, ciegas y
 turnos, subidas mínimas, montos y presets de subida, cierre de calles, retiro,
 botes laterales, devolución de apuestas no igualadas, empates, equidad por Monte
 Carlo y una simulación de 25 manos que verifica que las fichas se conserven.
+
+Los bots tienen tests propios: textura del board, proyectos y outs, fuerza
+preflop y posición, rasgos por perfil y nivel, agresión con mano fuerte, farol
+head-up contra multiway, comparación entre nivel suave y duro, charla que puede
+mentir y una comprobación de que no leen las cartas de los rivales. También se
+simula una mano completa en nivel duro para verificar que las fichas cierren.
+
 Los gestos de la mesa y el salto al final se prueban aparte con Playwright y
 toque real simulado.
 

@@ -3,20 +3,28 @@ import assert from 'node:assert/strict';
 
 import {
   BB,
+  BOT_LEVELS,
   SB,
   START_STACK,
   TABLE_CAP,
   applyAction,
   advance,
   bestHand,
+  boardTexture,
   botAction,
   clampRaiseTarget,
   compareScores,
   createTable,
+  drawInfo,
   equity,
   evaluate5,
   legalActions,
+  normalizeTable,
+  pickBotLine,
+  positionScore,
+  preflopScore,
   raiseOptions,
+  resolveTraits,
   startHand,
   stepRaiseTarget,
 } from '../js/poker-engine.js';
@@ -55,6 +63,54 @@ function tableWith({ stacks, dealer = 0 } = {}) {
       table.players[index].stack = stack;
     });
   }
+  return table;
+}
+
+/** Mesa armada a mano para probar una decisión concreta del bot. */
+function botSpot({
+  hole = 'AC AD',
+  board = 'AS KH 7D',
+  pot = 30,
+  currentBet = 0,
+  bet = 0,
+  stack = START_STACK,
+  turn = 1,
+  dealer = 0,
+  folded = [false, false, false, false],
+  raisesThisStreet = 0,
+  lastAggressor = null,
+  bluffing = false,
+} = {}) {
+  const table = createTable({ dealer });
+  startHand(table, seededRng(7));
+  const boardCards = board ? hand(board) : [];
+  table.board = boardCards;
+  table.street = boardCards.length === 0
+    ? 'preflop'
+    : boardCards.length === 3
+      ? 'flop'
+      : boardCards.length === 4
+        ? 'turn'
+        : 'river';
+  table.pot = pot;
+  table.currentBet = currentBet;
+  table.lastRaiseSize = BB;
+  table.raisesThisStreet = raisesThisStreet;
+  table.lastAggressor = lastAggressor;
+  table.turn = turn;
+  table.settled = false;
+
+  table.players.forEach((player, index) => {
+    player.hole = index === turn ? hand(hole) : hand('2C 3D');
+    player.folded = Boolean(folded[index]);
+    player.allIn = false;
+    player.bet = index === turn ? bet : currentBet;
+    player.stack = stack;
+    player.acted = false;
+    player.raises = 0;
+    player.bluffing = index === turn ? bluffing : false;
+  });
+
   return table;
 }
 
@@ -380,6 +436,265 @@ test('los bots juegan manos completas sin romper y conservan las fichas', () => 
     assert.equal(chips, total, `seed ${seed}: fichas perdidas`);
     assert.equal(table.pot, 0);
     assert.equal(table.players.every((player) => player.stack >= 0), true);
+  }
+});
+
+test('la textura del board distingue seco, húmedo y pareado', () => {
+  const dry = boardTexture(hand('AS 7D 2C'));
+  const wet = boardTexture(hand('9S 8S 7S'));
+  const paired = boardTexture(hand('KS KD 4C'));
+
+  assert.ok(dry.dry > 0.6, `seco: ${dry.dry}`);
+  assert.ok(wet.wet > dry.wet, `${wet.wet} vs ${dry.wet}`);
+  assert.equal(wet.flushy || wet.connected, true);
+  assert.equal(paired.paired, true);
+});
+
+test('los proyectos detectan color, escalera abierta y gutshot', () => {
+  const flush = drawInfo(hand('AS KS'), hand('QS 7S 2D'));
+  assert.equal(flush.flushDraw, true);
+  assert.ok(flush.outs >= 9, `outs color: ${flush.outs}`);
+
+  const oesd = drawInfo(hand('9C 8D'), hand('7S 6H 2C'));
+  assert.equal(oesd.oesd, true);
+  assert.ok(oesd.outs >= 8, `outs escalera: ${oesd.outs}`);
+
+  const gutshot = drawInfo(hand('9C 6D'), hand('7S 5H 2C'));
+  assert.equal(gutshot.gutshot, true);
+  assert.equal(gutshot.oesd, false);
+
+  const overcards = drawInfo(hand('AC KD'), hand('9S 7H 2C'));
+  assert.equal(overcards.overcards, 2);
+
+  const madeFlush = drawInfo(hand('AS KS'), hand('QS JS 2S'));
+  assert.equal(madeFlush.flushDraw, false);
+  assert.ok(madeFlush.made >= 5, `mano hecha: ${madeFlush.made}`);
+});
+
+test('la fuerza preflop ordena las manos y premia la posición', () => {
+  const aces = preflopScore(hand('AS AH'), 0.5);
+  const kings = preflopScore(hand('KS KH'), 0.5);
+  const junk = preflopScore(hand('7S 2D'), 0.5);
+
+  assert.ok(aces > kings && kings > junk, `${aces} / ${kings} / ${junk}`);
+  assert.ok(preflopScore(hand('AS KS'), 0.5) > preflopScore(hand('AS KD'), 0.5));
+  assert.ok(preflopScore(hand('AS KS'), 1) > preflopScore(hand('AS KS'), 0.4));
+  assert.equal(positionScore(createTable({ dealer: 0 }), 0), 1);
+});
+
+test('los niveles y perfiles cambian los rasgos de los bots', () => {
+  const suave = resolveTraits('aggro', 'suave');
+  const normal = resolveTraits('aggro', 'normal');
+  const duro = resolveTraits('aggro', 'duro');
+
+  assert.ok(duro.aggression > normal.aggression && normal.aggression > suave.aggression);
+  assert.ok(duro.bluff > normal.bluff && normal.bluff > suave.bluff);
+  assert.ok(suave.mistake > 0 && duro.mistake === 0);
+  assert.equal(resolveTraits('tight', 'duro').level, 'duro');
+  assert.equal(BOT_LEVELS.normal.label, 'Normal');
+});
+
+test('un bot con mano fuerte apuesta y uno débil se retira', () => {
+  const strongTable = botSpot({
+    hole: 'AC AD',
+    board: 'AS KH 7D',
+    pot: 60,
+    currentBet: 0,
+    turn: 1,
+  });
+  const strongOptions = legalActions(strongTable, 1);
+  const strongActions = [];
+  for (let seed = 1; seed <= 8; seed += 1) {
+    strongActions.push(
+      botAction(strongTable, 1, {
+        profile: 'aggro',
+        level: 'normal',
+        sims: 40,
+        rng: seededRng(seed),
+      }),
+    );
+  }
+  const valueBet = strongActions.find((action) => action.type === 'raise');
+  assert.ok(valueBet, JSON.stringify(strongActions));
+  assert.ok(valueBet.amount >= strongOptions.raise.min);
+  assert.ok(valueBet.amount <= strongOptions.raise.max);
+
+  const weakTable = botSpot({
+    hole: '2C 3D',
+    board: 'AS KH 7D',
+    pot: 60,
+    currentBet: 30,
+    turn: 1,
+  });
+  const weak = botAction(weakTable, 1, {
+    profile: 'tight',
+    level: 'duro',
+    sims: 40,
+    rng: seededRng(9),
+  });
+  assert.equal(weak.type, 'fold');
+});
+
+test('los bots farolean más con aire en posición y heads-up', () => {
+  const base = {
+    hole: '9C 7D',
+    board: 'AS 8H 2C',
+    pot: 40,
+    currentBet: 0,
+    turn: 0,
+  };
+  const headsUp = botSpot({ ...base, folded: [false, false, true, true] });
+  const multiway = botSpot({ ...base, folded: [false, false, false, false] });
+
+  let headsUpBluffs = 0;
+  let multiwayBluffs = 0;
+  for (let seed = 1; seed <= 40; seed += 1) {
+    const heads = botAction(headsUp, 0, {
+      profile: 'aggro',
+      level: 'normal',
+      sims: 20,
+      rng: seededRng(seed),
+    });
+    if (heads.intent === 'bluff') headsUpBluffs += 1;
+
+    const multi = botAction(multiway, 0, {
+      profile: 'aggro',
+      level: 'normal',
+      sims: 20,
+      rng: seededRng(seed),
+    });
+    if (multi.intent === 'bluff') multiwayBluffs += 1;
+  }
+
+  assert.ok(headsUpBluffs > 0, 'no faroleó nunca heads-up');
+  assert.ok(
+    headsUpBluffs > multiwayBluffs,
+    `heads-up ${headsUpBluffs} vs multiway ${multiwayBluffs}`,
+  );
+});
+
+test('el nivel duro presiona más que el suave', () => {
+  const table = botSpot({
+    hole: '9C 7D',
+    board: 'AS 8H 2C',
+    pot: 40,
+    currentBet: 0,
+    turn: 0,
+    folded: [false, false, true, true],
+  });
+
+  let suaveRaises = 0;
+  let duroRaises = 0;
+  for (let seed = 1; seed <= 40; seed += 1) {
+    const suave = botAction(table, 0, {
+      profile: 'aggro',
+      level: 'suave',
+      sims: 20,
+      rng: seededRng(seed),
+    });
+    if (suave.type === 'raise') suaveRaises += 1;
+
+    const duro = botAction(table, 0, {
+      profile: 'aggro',
+      level: 'duro',
+      sims: 20,
+      rng: seededRng(seed),
+    });
+    if (duro.type === 'raise') duroRaises += 1;
+  }
+
+  assert.ok(duroRaises > suaveRaises, `duro ${duroRaises} vs suave ${suaveRaises}`);
+});
+
+test('los bots no miran las cartas de los rivales', () => {
+  const table = botSpot({
+    hole: 'AC KD',
+    board: 'QS 8H 3D',
+    pot: 30,
+    currentBet: 0,
+    turn: 1,
+  });
+
+  table.players[2].hole = hand('2C 2D');
+  table.players[3].hole = hand('7C 7D');
+  const first = botAction(table, 1, {
+    profile: 'balanced',
+    level: 'normal',
+    sims: 30,
+    rng: seededRng(21),
+  });
+
+  table.players[2].hole = hand('AS AH');
+  table.players[3].hole = hand('KS KH');
+  const second = botAction(table, 1, {
+    profile: 'balanced',
+    level: 'normal',
+    sims: 30,
+    rng: seededRng(21),
+  });
+
+  assert.deepEqual(first, second);
+});
+
+test('normalizeTable completa las mesas guardadas de antes', () => {
+  const table = createTable();
+  delete table.lastAggressor;
+  delete table.raisesThisStreet;
+  for (const player of table.players) {
+    delete player.raises;
+    delete player.lastAction;
+    delete player.bluffing;
+  }
+
+  normalizeTable(table);
+
+  assert.equal(table.lastAggressor, null);
+  assert.equal(table.raisesThisStreet, 0);
+  assert.equal(table.players[0].raises, 0);
+  assert.equal(table.players[0].lastAction, '');
+  assert.equal(table.players[0].bluffing, false);
+});
+
+test('la charla de los bots puede mentir y no repite siempre', () => {
+  const tones = new Set();
+  for (let seed = 1; seed <= 60; seed += 1) {
+    const line = pickBotLine('bluff', seededRng(seed));
+    assert.ok(typeof line.text === 'string' && line.text.length > 0);
+    tones.add(line.tone);
+  }
+
+  assert.ok(tones.has('bluff'));
+  assert.ok(tones.size > 1, [...tones].join(','));
+});
+
+test('los bots conservan las fichas también en nivel duro', () => {
+  const total = START_STACK * 4;
+  for (let seed = 1; seed <= 10; seed += 1) {
+    const rng = seededRng(seed * 131);
+    const table = createTable({ dealer: seed % 4 });
+    startHand(table, rng);
+    let guard = 0;
+    while (!table.settled && guard < 80) {
+      guard += 1;
+      const index = table.turn;
+      if (index === null) {
+        advance(table, rng);
+        continue;
+      }
+      const action = botAction(table, index, {
+        rng,
+        sims: 20,
+        profile: ['tight', 'balanced', 'aggro'][index % 3],
+        level: 'duro',
+      });
+      const result = applyAction(table, index, action);
+      assert.equal(result.ok, true, `seed ${seed}: acción inválida ${action.type}`);
+      advance(table, rng);
+    }
+    assert.equal(table.settled, true, `seed ${seed}: la mano no cerró`);
+    const chips = table.players.reduce((sum, player) => sum + player.stack, 0);
+    assert.equal(chips, total, `seed ${seed}: fichas perdidas`);
+    assert.equal(table.pot, 0);
   }
 });
 

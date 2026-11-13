@@ -195,6 +195,26 @@
         </section>
 
         <section class="sheet__section">
+          <h3>Nivel de los bots</h3>
+          <div class="bot-level" id="botLevel" role="radiogroup" aria-label="Nivel de los bots">
+            <button type="button" class="bot-level__btn" data-level="suave" role="radio" aria-checked="false">Suave</button>
+            <button type="button" class="bot-level__btn" data-level="normal" role="radio" aria-checked="true">Normal</button>
+            <button type="button" class="bot-level__btn" data-level="duro" role="radio" aria-checked="false">Duro</button>
+          </div>
+          <p class="sheet__text" id="botLevelHint">Mezclan valor y faroles. La mesa de siempre, con mejores decisiones.</p>
+          <div class="pref">
+            <div class="pref__text">
+              <p class="pref__title">Charla en la mesa</p>
+              <p class="sheet__text">Los bots comentan la mano. A veces mienten.</p>
+            </div>
+            <button type="button" class="switch" id="botTalkBtn" role="switch" aria-checked="true" aria-label="Charla de los bots">
+              <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+              <span class="switch__value" id="botTalkValue">Activada</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="sheet__section">
           <h3>Gestos</h3>
           <div class="pref">
             <div class="pref__text">

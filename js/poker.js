@@ -12,6 +12,7 @@ import {
 } from './engine.js';
 import {
   BB,
+  BOT_LEVELS,
   TABLE_CAP,
   applyAction,
   advance as advanceTable,
@@ -19,6 +20,8 @@ import {
   clampRaiseTarget,
   createTable,
   legalActions,
+  normalizeTable,
+  pickBotLine,
   raiseOptions,
   startHand as beginHand,
   stepRaiseTarget,
@@ -28,10 +31,13 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.4';
+const APP_VERSION = 'v2.5';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
-const BOT_PROFILES = ['balanced', 'tight', 'aggro'];
+// Ana juega tight, Beto balanced y Caro aggro.
+const BOT_PROFILES = ['tight', 'balanced', 'aggro'];
+const BOT_TALK_CHANCE = 0.22;
+const BOT_TALK_MS = 1900;
 const BOT_DELAY_MIN = 620;
 const BOT_DELAY_MAX = 1140;
 
@@ -91,6 +97,10 @@ const els = {
   soundBtn: document.getElementById('soundBtn'),
   gesturesBtn: document.getElementById('gesturesBtn'),
   gesturesValue: document.getElementById('gesturesValue'),
+  botLevel: document.getElementById('botLevel'),
+  botLevelHint: document.getElementById('botLevelHint'),
+  botTalkBtn: document.getElementById('botTalkBtn'),
+  botTalkValue: document.getElementById('botTalkValue'),
   themeColor: document.getElementById('themeColor'),
   installBtn: document.getElementById('installBtn'),
   menuBtn: document.getElementById('menuBtn'),
@@ -152,10 +162,14 @@ const state = {
     storedPrefs.theme === 'light' || storedPrefs.theme === 'dark' ? storedPrefs.theme : 'auto',
   sound: typeof storedPrefs.sound === 'boolean' ? storedPrefs.sound : true,
   gestures: typeof storedPrefs.gestures === 'boolean' ? storedPrefs.gestures : true,
+  botLevel: BOT_LEVELS[storedPrefs.botLevel] ? storedPrefs.botLevel : 'normal',
+  botTalk: typeof storedPrefs.botTalk === 'boolean' ? storedPrefs.botTalk : true,
   table: null,
   busy: false,
   skipping: false,
   botTimer: 0,
+  talk: null,
+  talkTimer: 0,
   raiseOpen: false,
   raiseTarget: 0,
   lastNet: 0,
@@ -178,6 +192,8 @@ function savePrefs() {
     theme: state.theme,
     sound: state.sound,
     gestures: state.gestures,
+    botLevel: state.botLevel,
+    botTalk: state.botTalk,
     game: 'poker',
   });
 }
@@ -202,7 +218,7 @@ function loadTable() {
   if (!Array.isArray(table.board) || !Array.isArray(table.deck)) return null;
   if (typeof table.settled !== 'boolean' || typeof table.startStack !== 'number') return null;
   if (!table.players.every((player) => player && Array.isArray(player.hole))) return null;
-  return table;
+  return normalizeTable(table);
 }
 
 /* ---------- Tema y sonido ---------- */
@@ -239,6 +255,29 @@ function applyGestures() {
   els.gesturesBtn.setAttribute('aria-checked', String(state.gestures));
   els.gesturesBtn.classList.toggle('is-on', state.gestures);
   els.gesturesValue.textContent = state.gestures ? 'Activados' : 'Desactivados';
+}
+
+const BOT_LEVEL_HINTS = {
+  suave: 'Juegan más sueltos, pagan de más y farolean poco.',
+  normal: 'Mezclan valor y faroles. La mesa de siempre, con mejores decisiones.',
+  duro: 'Rangos ajustados, más presión y faroles mejor elegidos.',
+};
+
+function applyBotLevel() {
+  if (!els.botLevel) return;
+  for (const button of els.botLevel.querySelectorAll('[data-level]')) {
+    const active = button.dataset.level === state.botLevel;
+    button.classList.toggle('is-on', active);
+    button.setAttribute('aria-checked', String(active));
+  }
+  if (els.botLevelHint) els.botLevelHint.textContent = BOT_LEVEL_HINTS[state.botLevel];
+}
+
+function applyBotTalk() {
+  if (!els.botTalkBtn) return;
+  els.botTalkBtn.setAttribute('aria-checked', String(state.botTalk));
+  els.botTalkBtn.classList.toggle('is-on', state.botTalk);
+  els.botTalkValue.textContent = state.botTalk ? 'Activada' : 'Apagada';
 }
 
 darkQuery.addEventListener('change', () => {
@@ -406,6 +445,7 @@ function startNewHand() {
   state.raiseOpen = false;
   state.raiseTarget = 0;
   state.lastNet = 0;
+  clearTalk();
 
   if (state.balance < BB) {
     toast('No te alcanza para la ciega grande');
@@ -500,6 +540,7 @@ function scheduleBots() {
     const boardBefore = current.board.length;
     const action = botAction(current, expected, {
       profile: BOT_PROFILES[(expected - 1) % BOT_PROFILES.length],
+      level: state.botLevel,
       sims: 140,
     });
     let result = applyAction(current, expected, action);
@@ -521,6 +562,7 @@ function scheduleBots() {
     if (current.board.length > boardBefore) {
       setTimeout(() => sound.play('card'), 140);
     }
+    if (!current.settled) maybeTalk(expected, action.intent);
 
     state.busy = false;
     if (current.settled) applySettlement();
@@ -556,6 +598,7 @@ function skipToEnd() {
       if (index === 0) break;
       const action = botAction(table, index, {
         profile: BOT_PROFILES[(index - 1) % BOT_PROFILES.length],
+        level: state.botLevel,
         sims: 140,
       });
       let result = applyAction(table, index, action);
@@ -606,6 +649,37 @@ function resultInfo() {
   return { title, text, net };
 }
 
+/* ---------- Charla de los bots ---------- */
+
+let talkSeed = (Date.now() & 0x7fffffff) || 1;
+
+// Rng propio para la charla: no consume Math.random y no altera las manos.
+function talkRandom() {
+  talkSeed = (talkSeed * 1664525 + 1013904223) >>> 0;
+  return talkSeed / 4294967296;
+}
+
+function clearTalk() {
+  if (state.talkTimer) clearTimeout(state.talkTimer);
+  state.talkTimer = 0;
+  state.talk = null;
+}
+
+function maybeTalk(index, intent) {
+  if (!state.botTalk) return;
+  if (talkRandom() > BOT_TALK_CHANCE) return;
+
+  const line = pickBotLine(intent, talkRandom);
+  state.talk = { index, text: line.text, tone: line.tone };
+  if (state.talkTimer) clearTimeout(state.talkTimer);
+  state.talkTimer = setTimeout(() => {
+    state.talk = null;
+    state.talkTimer = 0;
+    renderSeats();
+  }, BOT_TALK_MS);
+  renderSeats();
+}
+
 function renderSeats() {
   const table = state.table;
   const seats = els.seats.children;
@@ -641,12 +715,23 @@ function renderSeats() {
     else if (isTurn) label = 'Pensando…';
     else if (winners.has(index) && revealed) label = `Ganó · ${player.handName}`;
     else if (revealed) label = player.handName;
-    seat.querySelector('.seat__state').textContent = label;
+
+    const talking = Boolean(
+      state.talk &&
+        state.talk.index === index &&
+        table &&
+        !table.settled &&
+        // La charla nunca tapa el estado importante: retirado, all in o resultado.
+        label === '',
+    );
+    seat.classList.toggle('is-talking', talking);
+    seat.querySelector('.seat__state').textContent = talking ? state.talk.text : label;
   }
 }
 
 function render() {
   const table = state.table;
+  if ((!table || table.settled) && state.talk) clearTalk();
   const info = resultInfo();
   const committedNow = committed();
 
@@ -1452,6 +1537,31 @@ if (els.gesturesBtn) {
   });
 }
 
+if (els.botLevel) {
+  els.botLevel.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-level]');
+    if (!button) return;
+    const level = button.dataset.level;
+    if (!BOT_LEVELS[level] || level === state.botLevel) return;
+    state.botLevel = level;
+    applyBotLevel();
+    savePrefs();
+    if (state.sound) sound.play('toggle');
+    toast(`Bots en nivel ${BOT_LEVELS[level].label}`);
+  });
+}
+
+if (els.botTalkBtn) {
+  els.botTalkBtn.addEventListener('click', () => {
+    state.botTalk = !state.botTalk;
+    applyBotTalk();
+    savePrefs();
+    clearTalk();
+    renderSeats();
+    if (state.sound) sound.play('toggle');
+  });
+}
+
 els.menuBtn.addEventListener('click', () => openSheet());
 els.sheetClose.addEventListener('click', closeSheet);
 els.sheet.addEventListener('click', (event) => {
@@ -1525,6 +1635,8 @@ setInterval(() => {
 applyTheme();
 applySound();
 applyGestures();
+applyBotLevel();
+applyBotTalk();
 buildBoard();
 buildAddChips();
 unlockSoundOnGesture();
