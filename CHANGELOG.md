@@ -26,13 +26,11 @@ Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 - Las subidas se redondean a la **ciega chica de la mesa**, también con ciegas
   altas.
 - Los faroles preflop ahora también respetan el control de frecuencia.
+- `APP_VERSION = 'v2.6'`, `CACHE = 'blackjack-v2.6'`.
 
 ### Corregido
 - La mesa de póker arranca con las ciegas y la entrada elegidas, y la entrada
   guardada se recorta al saldo disponible al repartir.
-
-### Cambiado (versión)
-- `APP_VERSION = 'v2.6'`, `CACHE = 'blackjack-v2.6'`.
 
 ## [v2.5] — 2026-11-12
 
