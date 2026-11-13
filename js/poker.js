@@ -38,14 +38,14 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.6';
+const APP_VERSION = 'v2.7';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 // Ana juega tight, Beto balanced y Caro aggro.
 const BOT_PROFILES = ['tight', 'balanced', 'aggro'];
 const BOT_TALK_CHANCE = 0.22;
 const BOT_TALK_BLUFF_CHANCE = 0.45;
-const BOT_TALK_MS = 1900;
+const BOT_TALK_MS = 3800;
 const BOT_DELAY_MIN = 620;
 const BOT_DELAY_MAX = 1140;
 
@@ -425,7 +425,8 @@ function buildBoard() {
       `<span class="seat__stack"></span>` +
       `<div class="seat__cards"></div>` +
       `<span class="seat__bet"></span>` +
-      `<span class="seat__state"></span>`;
+      `<span class="seat__state"></span>` +
+      `<span class="seat__talk" aria-hidden="true" hidden></span>`;
     els.seats.append(seat);
   });
 }
@@ -785,6 +786,13 @@ function renderSeats() {
     );
     seat.classList.toggle('is-talking', talking);
     seat.querySelector('.seat__state').textContent = talking ? state.talk.text : label;
+    const bubble = seat.querySelector('.seat__talk');
+    if (talking) {
+      bubble.textContent = state.talk.text;
+      bubble.hidden = false;
+    } else {
+      bubble.hidden = true;
+    }
   }
 }
 

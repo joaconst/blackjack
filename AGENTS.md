@@ -11,7 +11,7 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.6` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.7` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
@@ -151,9 +151,11 @@ tests/poker.test.js   73 tests del póker
   los casos. El controlador usa su propio LCG (`talkRandom`) para no consumir
   `Math.random` ni cambiar las manos repartidas (`BOT_TALK_CHANCE = 0.22`,
   `BOT_TALK_BLUFF_CHANCE = 0.45` cuando el intent es `bluff`/`semiBluff`,
-  `BOT_TALK_MS = 1900`). La frase nunca tapa “Se retiró” ni “All in”: solo habla
-  el asiento sin etiqueta. Se limpia al terminar la mano o repartir. En el
-  showdown no se muestra ninguna etiqueta de farol.
+  `BOT_TALK_MS = 3800`). La frase se muestra en `.seat__talk`, un globo de 11 px
+  a dos líneas como overlay del asiento (no mueve la mesa); el texto accesible
+  sigue en `.seat__state`. Nunca tapa “Se retiró” ni “All in”: solo habla el
+  asiento sin etiqueta. Se limpia al terminar la mano o repartir. En el showdown
+  no se muestra ninguna etiqueta de farol.
 
 ## Seeds deterministas para E2E
 

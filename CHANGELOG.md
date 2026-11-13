@@ -4,6 +4,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.7] — 2026-11-13
+
+### Mejorado
+- **Charla más visible en la mesa:** la frase de los bots aparece en un globo
+  de 11 px sobre el asiento, con hasta dos líneas, y dura **3,8 s** (antes
+  1,9 s). El globo es un overlay: no mueve la mesa y sigue sin tapar “Se
+  retiró”, “All in” ni el resultado. La frecuencia de charla y de faroles no
+  cambia.
+
+### Cambiado
+- `APP_VERSION = 'v2.7'`, `CACHE = 'blackjack-v2.7'`.
+
 ## [v2.6] — 2026-11-13
 
 ### Agregado

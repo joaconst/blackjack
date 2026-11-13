@@ -40,6 +40,7 @@
 }
 
 .seat {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -152,8 +153,43 @@
 }
 
 .seat.is-talking .seat__state {
+  opacity: 0;
+}
+
+/* Globo de charla: overlay para no mover la mesa. La frase accesible sigue
+   en `.seat__state`; esto solo la muestra más grande. */
+.seat__talk {
+  position: absolute;
+  right: -4px;
+  top: calc(100% - 6px);
+  left: -4px;
+  z-index: 3;
+  padding: 2px 6px;
+  border: 1px solid var(--accent-glow);
+  border-radius: 10px;
+  background: var(--surface);
   color: var(--accent);
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.12;
+  text-align: center;
+  overflow-wrap: break-word;
+  white-space: normal;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+
+.seat__talk[hidden] {
+  display: none;
+}
+
+@media (max-width: 350px) {
+  .seat__talk {
+    right: -2px;
+    left: -2px;
+    padding: 3px 4px;
+    font-size: 10.5px;
+  }
 }
 
 /* ---------- Centro: pozo, comunitarias y estado ---------- */
