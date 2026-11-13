@@ -11,7 +11,7 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.8` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.9` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
@@ -121,6 +121,9 @@ tests/poker.test.js   73 tests del póker
   entrada con fichas (`CHIP_TIERS`), **Máximo** y **Limpiar**. `openTableSheet`
   no cambia nada si hay una mano activa. `renderTableSheet` deshabilita las
   ciegas que superan el saldo y calcula el mínimo con `MIN_BUY_IN_BLINDS`;
+  también escribe `#blindHint` (ciega chica y grande activas) y
+  `#tableMinHint` (“Mínimo … (10 ciegas grandes) · máximo tu saldo”), así que no
+  volver a dejarlos como texto fijo en el HTML.
   `chooseBlind` sugiere `suggestedBuyIn`; `confirmTable` guarda `bigBlind` y
   `buyIn` con `savePrefs()`. La entrada se aplica desde la próxima mano.
 - Montos de subida: `raiseOptions`, `clampRaiseTarget` y `stepRaiseTarget` en

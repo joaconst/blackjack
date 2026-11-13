@@ -38,7 +38,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.8';
+const APP_VERSION = 'v2.9';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 // Ana juega tight, Beto balanced y Caro aggro.
@@ -1357,9 +1357,14 @@ function renderTableSheet() {
 
   els.tableTotal.textContent = money(entry);
   els.tableAfter.textContent = `Tenés ${money(base)}`;
+  els.blindHint.textContent = short
+    ? 'Tu saldo no llega para estas ciegas'
+    : `Ciega chica ${money(bb / 2)} · grande ${money(bb)}.`;
   els.tableMinHint.textContent = short
     ? 'Tu saldo no llega para estas ciegas'
-    : `Mínimo ${money(min)} · máximo ${money(base)}`;
+    : base < bb * MIN_BUY_IN_BLINDS
+      ? `Entrada mínima ${money(min)}: todo tu saldo`
+      : `Mínimo ${money(min)} (10 ciegas grandes) · máximo tu saldo`;
 
   for (const chip of els.tableChips.children) {
     const value = Number(chip.dataset.value);

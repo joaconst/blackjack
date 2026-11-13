@@ -4,6 +4,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.9] — 2026-11-13
+
+### Corregido
+- **Hoja Mesa más clara:** la pista de las ciegas ahora muestra la ciega activa
+  (“Ciega chica $5 · grande $10”) y el rango de la entrada se lee como tal:
+  “Mínimo $100 (10 ciegas grandes) · máximo tu saldo”. Antes el texto quedaba
+  pegado a los botones de ciega y parecía que el 100 y el millón eran las ciegas.
+  Los montos y las reglas no cambian.
+
+### Cambiado
+- `APP_VERSION = 'v2.9'`, `CACHE = 'blackjack-v2.9'`.
+
 ## [v2.8] — 2026-11-13
 
 ### Cambiado
