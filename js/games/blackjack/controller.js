@@ -1,34 +1,61 @@
 import {
-  MIN_BET,
-  START_BALANCE,
   DECKS,
-  RESHUFFLE_AT,
-  DAILY_FLOOR,
   MAX_HANDS,
-  CHIP_TIERS,
-  SUIT_GLYPH,
-  RANK_LABEL,
-  SUIT_LABEL,
-  createShoe,
-  shuffle,
+  MIN_BET,
+  RESHUFFLE_AT,
+  canSplit,
+  dealerShouldHit,
   handValue,
   isBlackjack,
-  dealerShouldHit,
-  canSplit,
   settleHand,
-  dayKey,
-  msUntilNextDay,
-  dailyTopUp,
+} from './engine.js';
+import {
+  CHIP_TIERS,
+  DAILY_FLOOR,
   availableChips,
   chipStack,
   formatMoney,
-} from './engine.js';
-import { sound, unlockSoundOnGesture } from './sound.js';
+  msUntilNextDay,
+} from '../../core/money.js';
+import {
+  LEGACY_KEY,
+  PREFS_KEY,
+  PROGRESS_KEY,
+  readStored,
+  removeStored,
+} from '../../core/storage.js';
+import { loadPrefs as loadStoredPrefs, savePrefs as saveStoredPrefs } from '../../core/prefs.js';
+import {
+  applyDailyTopUp,
+  loadProgress as loadStoredProgress,
+  saveProgress as saveStoredProgress,
+} from '../../core/wallet.js';
+import { SUIT_GLYPH, cardLabel, createShoe, shuffle } from '../../core/cards.js';
+import {
+  animateWallet as animateWalletUI,
+  applyGestures as applyGesturesUI,
+  applySoundState,
+  applyTheme as applyThemeUI,
+  createInstallUI,
+  createSheetUI,
+  createToast,
+  formatDuration,
+  resolvedTheme,
+  setVersion,
+  watchTheme,
+} from '../../core/ui.js';
+import { buildAddChips, chipIndex, chipLabel, makeChip, createAddFundsSheet } from '../../core/chips.js';
+import {
+  DOUBLE_TAP_DIST,
+  DOUBLE_TAP_MS,
+  GESTURE_EDGE,
+  SWIPE_MAX_MS,
+  TAP_MAX_MS,
+  isDoubleTap,
+} from '../../core/gestures.js';
+import { sound, unlockSoundOnGesture } from '../../sound.js';
 
-const PREFS_KEY = 'blackjack.prefs.v1';
-const PROGRESS_KEY = 'blackjack.progress.v1';
-const LEGACY_KEY = 'blackjack.state.v1';
-const APP_VERSION = 'v2.10';
+const APP_VERSION = 'v2.11';
 const money = formatMoney;
 let resetting = false;
 
@@ -96,77 +123,18 @@ const els = {
 
 /* ---------- Estado y persistencia ---------- */
 
-function readStored(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const value = JSON.parse(raw);
-    return value && typeof value === 'object' ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStored(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 const storedPrefs = readStored(PREFS_KEY);
 const storedProgress = readStored(PROGRESS_KEY);
 const legacy = readStored(LEGACY_KEY);
 
-function loadPrefs() {
-  // Al migrar desde la clave vieja, el tema y el sonido se conservan.
-  const source = storedPrefs || legacy || {};
-  return {
-    theme: source.theme === 'light' || source.theme === 'dark' ? source.theme : 'auto',
-    sound: typeof source.sound === 'boolean' ? source.sound : true,
-    gestures: typeof source.gestures === 'boolean' ? source.gestures : true,
-    seenGestureHint: source.seenGestureHint === true,
-    game: source.game === 'poker' || source.game === 'blackjack' ? source.game : '',
-  };
-}
-
-function loadProgress() {
-  const source = storedProgress || legacy || {};
-  const balance =
-    Number.isFinite(source.balance) && source.balance >= 0
-      ? Math.floor(source.balance)
-      : START_BALANCE;
-  const bet = Number.isFinite(source.bet) && source.bet >= 0 ? Math.floor(source.bet) : 0;
-  const lastBet =
-    Number.isFinite(source.lastBet) && source.lastBet >= 0
-      ? Math.floor(source.lastBet)
-      : bet >= MIN_BET
-        ? bet
-        : 0;
-
-  return {
-    balance,
-    bet,
-    lastTopUp: typeof source.lastTopUp === 'string' ? source.lastTopUp : dayKey(),
-    lastBet,
-  };
-}
-
-const prefs = loadPrefs();
-const progress = loadProgress();
+// Al migrar desde la clave vieja, el tema y el sonido se conservan.
+const prefs = loadStoredPrefs(storedPrefs || legacy);
+const progress = loadStoredProgress(storedProgress || legacy, { minBet: MIN_BET });
 
 // Guarda las claves nuevas una sola vez y retira la vieja.
-const wrotePrefs = storedPrefs ? true : writeStored(PREFS_KEY, prefs);
-const wroteProgress = storedProgress ? true : writeStored(PROGRESS_KEY, progress);
-if (legacy && wrotePrefs && wroteProgress) {
-  try {
-    localStorage.removeItem(LEGACY_KEY);
-  } catch {
-    /* sin almacenamiento */
-  }
-}
+const wrotePrefs = storedPrefs ? true : saveStoredPrefs(prefs);
+const wroteProgress = storedProgress ? true : saveStoredProgress(progress);
+if (legacy && wrotePrefs && wroteProgress) removeStored(LEGACY_KEY);
 
 function emptyHand(bet = 0) {
   return {
@@ -201,7 +169,7 @@ function saveProgress() {
   // Mientras se reinicia el progreso no hay que volver a escribir nada:
   // pagehide dispara save() justo despues de borrar el localStorage.
   if (resetting) return;
-  writeStored(PROGRESS_KEY, {
+  saveStoredProgress({
     balance: state.balance,
     bet: state.bet,
     lastTopUp: state.lastTopUp,
@@ -210,9 +178,7 @@ function saveProgress() {
 }
 
 function savePrefs() {
-  const current = readStored(PREFS_KEY) || {};
-  writeStored(PREFS_KEY, {
-    ...current,
+  saveStoredPrefs({
     theme: state.theme,
     sound: state.sound,
     gestures: state.gestures,
@@ -227,76 +193,25 @@ function save() {
 
 /* ---------- Tema ---------- */
 
-const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-function resolvedTheme() {
-  if (state.theme === 'light' || state.theme === 'dark') return state.theme;
-  return darkQuery.matches ? 'dark' : 'light';
-}
-
 function applyTheme() {
-  const theme = resolvedTheme();
-  document.documentElement.dataset.theme = theme;
-  if (els.themeColor) {
-    els.themeColor.setAttribute('content', theme === 'dark' ? '#0f1210' : '#f6f5f0');
-  }
-  els.themeBtn.setAttribute(
-    'aria-label',
-    theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
-  );
+  applyThemeUI({ theme: state.theme, themeColor: els.themeColor, themeBtn: els.themeBtn });
 }
 
-darkQuery.addEventListener('change', () => {
-  if (state.theme === 'auto') applyTheme();
-});
+watchTheme(() => state.theme, applyTheme);
 
 function applySound() {
-  document.documentElement.dataset.sound = state.sound ? 'on' : 'off';
-  els.soundBtn.setAttribute('aria-pressed', String(state.sound));
-  els.soundBtn.setAttribute('aria-label', state.sound ? 'Silenciar sonidos' : 'Activar sonidos');
-  sound.setMuted(!state.sound);
+  applySoundState({ enabled: state.sound, soundBtn: els.soundBtn });
 }
 
 function applyGestures() {
-  document.documentElement.dataset.gestures = state.gestures ? 'on' : 'off';
-  els.gesturesBtn.setAttribute('aria-checked', String(state.gestures));
-  els.gesturesBtn.classList.toggle('is-on', state.gestures);
-  els.gesturesValue.textContent = state.gestures ? 'Activados' : 'Desactivados';
-}
-
-function buildAddChips() {
-  els.addChips.replaceChildren(...CHIP_TIERS.map((tier) => makeChip(tier)));
+  applyGesturesUI({
+    enabled: state.gestures,
+    gesturesBtn: els.gesturesBtn,
+    gesturesValue: els.gesturesValue,
+  });
 }
 
 /* ---------- Fichas ---------- */
-
-function chipLabel(value) {
-  if (value < 1000) return String(value);
-  const k = value / 1000;
-  return `${Number.isInteger(k) ? k : String(k).replace('.', ',')}k`;
-}
-
-function chipIndex(value) {
-  const index = CHIP_TIERS.indexOf(value);
-  return index < 0 ? 0 : index;
-}
-
-function makeChip(value, { button = true } = {}) {
-  const node = document.createElement(button ? 'button' : 'span');
-  if (button) {
-    node.type = 'button';
-    node.setAttribute('aria-label', `Agregar ${money(value)}`);
-  } else {
-    node.setAttribute('aria-hidden', 'true');
-  }
-  node.className = `chip chip--${value}`;
-  node.dataset.value = String(value);
-
-  const inner = document.createElement('span');
-  inner.textContent = chipLabel(value);
-  node.append(inner);
-  return node;
-}
 
 function chipStackNode(chip, index) {
   const node = document.createElement('span');
@@ -438,11 +353,6 @@ function floatGain(text) {
 /* ---------- Cartas ---------- */
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function cardLabel(card) {
-  const rank = RANK_LABEL[card.rank] || card.rank;
-  return `${rank} de ${SUIT_LABEL[card.suit]}`;
-}
 
 function createFaceCard(card) {
   const node = document.createElement('div');
@@ -1118,32 +1028,17 @@ function endRound() {
 function maybeTopUp() {
   if (state.phase !== 'betting') return false;
 
-  const today = dayKey();
-  const result = dailyTopUp({
-    balance: state.balance,
-    lastTopUp: state.lastTopUp,
-    today,
-    floor: DAILY_FLOOR,
-  });
-
+  const result = applyDailyTopUp(state.balance, state.lastTopUp);
   if (!result.applied) return false;
 
   state.balance = result.balance;
-  state.lastTopUp = today;
+  state.lastTopUp = result.today;
   if (state.bet > state.balance) state.bet = state.balance;
   setBetMessage();
   save();
   render();
   toast(`Bono diario: +${money(result.credited)} hasta ${money(DAILY_FLOOR)}`);
   return true;
-}
-
-function formatDuration(ms) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = String(Math.floor(total / 3600)).padStart(2, '0');
-  const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
-  const s = String(total % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
 }
 
 function tick() {
@@ -1155,228 +1050,87 @@ function tick() {
 
 /* ---------- Feedback ---------- */
 
-let toastTimer = 0;
-let toastHideTimer = 0;
-
-function toast(text) {
-  clearTimeout(toastTimer);
-  clearTimeout(toastHideTimer);
-  els.toast.textContent = text;
-  els.toast.hidden = false;
-  requestAnimationFrame(() => els.toast.classList.add('is-visible'));
-
-  toastTimer = setTimeout(() => {
-    els.toast.classList.remove('is-visible');
-    toastHideTimer = setTimeout(() => {
-      els.toast.hidden = true;
-    }, 220);
-  }, 3400);
-}
+const toast = createToast(els.toast);
 
 function animateWallet(tone) {
-  if (tone !== 'win' && tone !== 'lose') return;
-  const cls = tone === 'win' ? 'is-up' : 'is-down';
-  els.balance.classList.remove('is-up', 'is-down');
-  void els.balance.offsetWidth;
-  els.balance.classList.add(cls);
-  setTimeout(() => els.balance.classList.remove(cls), 800);
+  animateWalletUI(els.balance, tone);
 }
 
 /* ---------- Instalación (PWA / iOS) ---------- */
 
-const standalone =
-  window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-const isIOS =
-  /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-let installPrompt = null;
-
-function renderInstall() {
-  const canPrompt = Boolean(installPrompt);
-
-  els.installBtn.hidden = standalone || (!canPrompt && !isIOS);
-  if (!els.installBtn.hidden) {
-    els.installBtn.setAttribute(
-      'aria-label',
-      canPrompt ? 'Instalar aplicación' : 'Cómo agregar a la pantalla de inicio',
-    );
-  }
-
-  els.sheetInstallBtn.hidden = !canPrompt || standalone;
-  els.installSteps.hidden = true;
-  els.installSteps.replaceChildren();
-
-  if (standalone) {
-    els.installStatus.textContent = 'Ya estás usando la app instalada.';
-    return;
-  }
-  if (canPrompt) {
-    els.installStatus.textContent = 'Tu navegador permite instalarla con un toque.';
-    return;
-  }
-  if (isIOS) {
-    els.installStatus.textContent = 'En iPhone o iPad se agrega desde Safari:';
-    const steps = [
-      'Abrí esta página en Safari.',
-      'Tocá el botón Compartir.',
-      'Elegí “Agregar a pantalla de inicio”.',
-      'Tocá “Agregar”.',
-    ];
-    for (const text of steps) {
-      const li = document.createElement('li');
-      li.textContent = text;
-      els.installSteps.append(li);
-    }
-    els.installSteps.hidden = false;
-    return;
-  }
-  els.installStatus.textContent =
-    'Desde el menú del navegador elegí “Instalar aplicación” o “Agregar a la pantalla de inicio”.';
-}
-
-async function promptInstall() {
-  if (!installPrompt) {
-    openSheet(true);
-    return;
-  }
-  const prompt = installPrompt;
-  installPrompt = null;
-  try {
-    prompt.prompt();
-    await prompt.userChoice;
-  } catch {
-    /* el navegador canceló */
-  }
-  renderInstall();
-}
-
-window.addEventListener('beforeinstallprompt', (event) => {
-  event.preventDefault();
-  installPrompt = event;
-  renderInstall();
+const installUI = createInstallUI({
+  installBtn: els.installBtn,
+  sheetInstallBtn: els.sheetInstallBtn,
+  installSteps: els.installSteps,
+  installStatus: els.installStatus,
+  openSheet: (scroll) => sheetUI.open(scroll),
+  toast,
 });
 
-window.addEventListener('appinstalled', () => {
-  installPrompt = null;
-  renderInstall();
-  toast('App instalada');
-});
+const renderInstall = installUI.renderInstall;
 
 /* ---------- Hoja de ajustes ---------- */
-
-let lastFocused = null;
-let lastFocusedAdd = null;
 
 function showResetConfirm(show) {
   els.resetConfirm.hidden = !show;
   els.resetBtn.hidden = show;
 }
 
-function openSheet(scrollToInstall = false) {
-  lastFocused = document.activeElement;
-  renderInstall();
-  els.sheet.hidden = false;
-  document.body.classList.add('has-sheet');
-  els.sheetClose.focus({ preventScroll: true });
-  if (scrollToInstall) {
-    setTimeout(() => {
-      els.installStatus.scrollIntoView({ block: 'center' });
-    }, 80);
-  }
-}
+const sheetUI = createSheetUI({
+  sheet: els.sheet,
+  sheetClose: els.sheetClose,
+  installStatus: els.installStatus,
+  renderInstall,
+  isOtherSheetOpen: () => !els.addSheet.hidden,
+  onClose: () => showResetConfirm(false),
+});
 
-function closeSheet() {
-  els.sheet.hidden = true;
-  showResetConfirm(false);
-  if (els.addSheet.hidden) document.body.classList.remove('has-sheet');
-  if (lastFocused && typeof lastFocused.focus === 'function') {
-    lastFocused.focus({ preventScroll: true });
-  }
-}
+const openSheet = sheetUI.open;
+const closeSheet = sheetUI.close;
 
 /* ---------- Beta: agregar fichas ---------- */
 
-let addAmount = 0;
-let addStack = [];
+const addFundsUI = createAddFundsSheet({
+  addFundsBtn: els.addFundsBtn,
+  addSheet: els.addSheet,
+  addClose: els.addClose,
+  addTotal: els.addTotal,
+  addAfter: els.addAfter,
+  addConfirm: els.addConfirm,
+  addUndo: els.addUndo,
+  addClear: els.addClear,
+  addChips: els.addChips,
+  getBase: () => state.balance,
+  onChip: (value) => playChip(value),
+  onUndo: () => sound.play('tick'),
+  onClear: () => sound.play('tick'),
+  onConfirm: (amount) => {
+    state.balance += amount;
+    if (state.phase === 'betting' && state.status.text === '') setBetMessage();
+    save();
+    render();
 
-function renderAddSheet() {
-  els.addTotal.textContent = money(addAmount);
-  els.addAfter.textContent =
-    addAmount > 0
-      ? `${money(state.balance)} → ${money(state.balance + addAmount)}`
-      : `Saldo: ${money(state.balance)}`;
-  els.addConfirm.disabled = addAmount <= 0;
-  els.addConfirm.textContent = addAmount > 0 ? `Agregar ${money(addAmount)}` : 'Agregar fichas';
-  els.addUndo.disabled = addStack.length === 0;
-  els.addClear.disabled = addStack.length === 0;
-}
+    // renderChips ya avisa y suena cuando se desbloquea una ficha nueva.
+    if (lastUnlocked.length) {
+      toast(`Agregaste ${money(amount)} · nueva ficha de ${money(Math.max(...lastUnlocked))}`);
+    } else {
+      toast(`Agregaste ${money(amount)}`);
+      sound.play('unlockTier');
+    }
+  },
+  isOtherSheetOpen: () => !els.sheet.hidden,
+});
 
-function openAddSheet() {
-  lastFocusedAdd = document.activeElement;
-  addAmount = 0;
-  addStack = [];
-  renderAddSheet();
-  els.addSheet.hidden = false;
-  document.body.classList.add('has-sheet');
-  els.addClose.focus({ preventScroll: true });
-}
-
-function closeAddSheet() {
-  els.addSheet.hidden = true;
-  if (els.sheet.hidden) document.body.classList.remove('has-sheet');
-  if (lastFocusedAdd && typeof lastFocusedAdd.focus === 'function') {
-    lastFocusedAdd.focus({ preventScroll: true });
-  }
-}
-
-function addFundsChip(value) {
-  if (!Number.isFinite(value) || value <= 0) return;
-  addStack.push(value);
-  addAmount += value;
-  playChip(value);
-  renderAddSheet();
-}
-
-function undoAddFunds() {
-  const value = addStack.pop();
-  if (!value) return;
-  addAmount = Math.max(0, addAmount - value);
-  sound.play('tick');
-  renderAddSheet();
-}
-
-function confirmAddFunds() {
-  if (addAmount <= 0) return;
-
-  state.balance += addAmount;
-  if (state.phase === 'betting' && state.status.text === '') setBetMessage();
-  save();
-  render();
-
-  // renderChips ya avisa y suena cuando se desbloquea una ficha nueva.
-  if (lastUnlocked.length) {
-    toast(`Agregaste ${money(addAmount)} · nueva ficha de ${money(Math.max(...lastUnlocked))}`);
-  } else {
-    toast(`Agregaste ${money(addAmount)}`);
-    sound.play('unlockTier');
-  }
-  closeAddSheet();
-}
+const closeAddSheet = addFundsUI.close;
 
 /* ---------- Gestos ---------- */
 
-const GESTURE_EDGE = 28;
 const SWIPE_MIN = 64;
 const SWIPE_LEFT_MIN = 80;
 const SWIPE_ALLIN_MIN = 90;
 const SWIPE_ALLIN_HINT = 45;
 const DRAG_MAX = 150;
-const SWIPE_MAX_MS = 900;
 const DRAG_MAX_MS = 2500;
-const TAP_MAX_MS = 500;
-const DOUBLE_TAP_MS = 450;
-const DOUBLE_TAP_DIST = 40;
 
 let gesture = null;
 let lastTap = { t: 0, x: 0, y: 0 };
@@ -1474,9 +1228,8 @@ function onTablePointerDown(event) {
     state.dealer.length > 0;
 
   const now = performance.now();
-  const near = Math.hypot(x - lastTap.x, y - lastTap.y) < DOUBLE_TAP_DIST;
   // El doble toque se mide entre toques, sin contar lo que dura cada uno.
-  const doubleTap = betting && lastTap.t > 0 && now - lastTap.t < DOUBLE_TAP_MS && near;
+  const doubleTap = betting && isDoubleTap(lastTap, now, x, y);
 
   gesture = {
     id: event.pointerId,
@@ -1701,27 +1454,6 @@ els.gesturesBtn.addEventListener('click', () => {
   toast(state.gestures ? 'Gestos activados' : 'Gestos desactivados · seguí con los botones');
 });
 
-els.addFundsBtn.addEventListener('click', openAddSheet);
-els.addClose.addEventListener('click', closeAddSheet);
-els.addUndo.addEventListener('click', undoAddFunds);
-els.addClear.addEventListener('click', () => {
-  addAmount = 0;
-  addStack = [];
-  sound.play('tick');
-  renderAddSheet();
-});
-els.addConfirm.addEventListener('click', confirmAddFunds);
-
-els.addChips.addEventListener('click', (event) => {
-  const chip = event.target.closest('.chip');
-  if (!chip) return;
-  addFundsChip(Number(chip.dataset.value));
-});
-
-els.addSheet.addEventListener('click', (event) => {
-  if (event.target.closest('[data-close-add]')) closeAddSheet();
-});
-
 els.resetBtn.addEventListener('click', () => showResetConfirm(true));
 els.resetCancel.addEventListener('click', () => {
   showResetConfirm(false);
@@ -1729,17 +1461,11 @@ els.resetCancel.addEventListener('click', () => {
 });
 els.resetGo.addEventListener('click', () => {
   resetting = true;
-  try {
-    localStorage.removeItem(PROGRESS_KEY);
-    localStorage.removeItem(LEGACY_KEY);
-  } catch {
-    /* sin almacenamiento */
-  }
+  removeStored(PROGRESS_KEY);
+  removeStored(LEGACY_KEY);
   location.reload();
 });
 
-els.installBtn.addEventListener('click', promptInstall);
-els.sheetInstallBtn.addEventListener('click', promptInstall);
 els.menuBtn.addEventListener('click', () => openSheet());
 els.sheetClose.addEventListener('click', closeSheet);
 els.noFundsRulesBtn.addEventListener('click', () => openSheet());
@@ -1794,7 +1520,7 @@ if (state.game === 'poker') location.replace('poker.html');
 applyTheme();
 applySound();
 applyGestures();
-buildAddChips();
+buildAddChips(els.addChips);
 unlockSoundOnGesture();
 applyInitialState();
 
@@ -1804,7 +1530,7 @@ if (!state.game) openPicker(true);
 function applyInitialState() {
   if (state.bet > state.balance) state.bet = state.balance;
   if (state.bet < MIN_BET) state.bet = 0;
-  if (els.appVersion) els.appVersion.textContent = `versión ${APP_VERSION}`;
+  if (els.appVersion) setVersion(els.appVersion, APP_VERSION);
   maybeTopUp();
   if (state.balance < MIN_BET) setStatus('', 'neutral');
   else setBetMessage();

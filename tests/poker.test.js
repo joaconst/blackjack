@@ -40,7 +40,7 @@ import {
   startHand,
   stepRaiseTarget,
   suggestedBuyIn,
-} from '../js/poker-engine.js';
+} from '../js/games/poker/engine.js';
 
 /* ---------- Utilidades ---------- */
 

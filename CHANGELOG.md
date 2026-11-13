@@ -2,7 +2,30 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
-`js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
+`js/games/blackjack/controller.js` y `js/games/poker/controller.js`; el cache del
+service worker usa `blackjack-vX.Y`.
+
+## [v2.11] — 2026-11-13
+
+### Cambiado
+- **Capa común (`js/core/`):** almacenamiento, preferencias, saldo diario, cartas,
+  dinero y fichas, gestos y piezas de interfaz (tema, sonido, avisos, instalación
+  y hojas) pasan a módulos compartidos por los dos juegos. Las funciones estaban
+  duplicadas en los dos controladores; ahora hay una sola versión de cada una.
+- **Carpetas por juego:** los motores y controladores viven en
+  `js/games/blackjack/` y `js/games/poker/`. `index.html` carga
+  `js/games/blackjack/controller.js` y `poker.html` carga
+  `js/games/poker/controller.js`.
+- `sw.js` precachea los módulos nuevos y usa `CACHE = 'blackjack-v2.11'`.
+
+### Compatibilidad
+- Las claves guardadas no cambian (`blackjack.prefs.v1`,
+  `blackjack.progress.v1`, `poker.table.v1`), así que el saldo, las preferencias
+  y la mesa en curso se conservan al actualizar.
+- Sin cambios de reglas, de interfaz ni de comportamiento.
+
+### Tests
+- `npm test` sigue en 75/75, con los imports apuntando a `js/games/*/engine.js`.
 
 ## [v2.10] — 2026-11-13
 

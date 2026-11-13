@@ -4,7 +4,7 @@
 // Dinero: el motor trabaja con stacks de la mesa. El controlador decide
 // cuánto poner en riesgo por mano y aplica el neto al saldo al terminar.
 
-import { createShoe, shuffle } from './engine.js';
+import { createShoe, shuffle } from '../../core/cards.js';
 
 export const SB = 5;
 export const BB = 10;

@@ -1,4 +1,4 @@
-const CACHE = 'blackjack-v2.10';
+const CACHE = 'blackjack-v2.11';
 
 const ASSETS = [
   './',
@@ -10,11 +10,19 @@ const ASSETS = [
   './css/styles.css',
   './css/chooser.css',
   './css/poker.css',
-  './js/engine.js',
-  './js/poker-engine.js',
   './js/sound.js',
-  './js/app.js',
-  './js/poker.js',
+  './js/core/storage.js',
+  './js/core/cards.js',
+  './js/core/money.js',
+  './js/core/prefs.js',
+  './js/core/wallet.js',
+  './js/core/gestures.js',
+  './js/core/chips.js',
+  './js/core/ui.js',
+  './js/games/blackjack/engine.js',
+  './js/games/blackjack/controller.js',
+  './js/games/poker/engine.js',
+  './js/games/poker/controller.js',
   './icons/favicon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',

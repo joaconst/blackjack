@@ -195,7 +195,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.6`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.11`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 
@@ -238,17 +238,30 @@ css/styles.css         layout, mesa, controles, hojas y animaciones
 css/cards.css          aspecto de cartas y fichas (el "skin")
 css/chooser.css        selector de juego
 css/poker.css          mesa, asientos y acciones de póker
-js/engine.js           reglas, cálculos y armado de la pila, sin DOM
-js/poker-engine.js     evaluador, apuestas, botes laterales y bots, sin DOM
+js/core/storage.js     claves y lectura/escritura de localStorage
+js/core/money.js       dinero, calendario, fichas y armado de la pila
+js/core/cards.js       mazos, palos y etiquetas de cartas
+js/core/prefs.js       preferencias compartidas (tema, sonido, gestos, juego)
+js/core/wallet.js      saldo y bono diario
+js/core/gestures.js    umbrales de toque y swipe
+js/core/chips.js       fichas y hoja de agregar fichas
+js/core/ui.js          tema, sonido, avisos, instalación y hojas
 js/sound.js            sonidos sintetizados con Web Audio
-js/app.js              interfaz del blackjack, estado, persistencia e instalación
-js/poker.js            interfaz del póker, turnos, bots y saldo compartido
+js/games/blackjack/engine.js       reglas y cálculos del blackjack, sin DOM
+js/games/blackjack/controller.js   interfaz del blackjack, estado y gestos
+js/games/poker/engine.js           evaluador, apuestas, botes y bots, sin DOM
+js/games/poker/controller.js       interfaz del póker, turnos y saldo compartido
 manifest.webmanifest
 sw.js                  cache offline
 icons/
 tests/engine.test.js
 tests/poker.test.js
 ```
+
+Los dos juegos comparten `js/core/`: ahí vive todo lo que no es regla de un juego
+(almacenamiento, saldo, preferencias, cartas, fichas, gestos e interfaz). Para
+sumar un juego nuevo alcanza con un motor puro y un controlador en
+`js/games/<juego>/` que importe esa capa.
 
 ## Cambiar el estilo de cartas y fichas
 
@@ -297,9 +310,9 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (por ejemplo `blackjack-v2.1` → `blackjack-v2.2`) y `APP_VERSION` en
-  `js/app.js` y `js/poker.js` para que se actualice el cache y la versión que se
-  muestra en Ajustes.
+  `sw.js` (por ejemplo `blackjack-v2.11` → `blackjack-v2.12`) y `APP_VERSION` en
+  `js/games/blackjack/controller.js` y `js/games/poker/controller.js` para que se
+  actualice el cache y la versión que se muestra en Ajustes.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
   saldo, apuesta, mesa de blackjack y mesa de póker; conserva tema, sonido y
   gestos.

@@ -22,7 +22,7 @@ import {
   DECKS,
   DAILY_FLOOR,
   MAX_HANDS,
-} from '../js/engine.js';
+} from '../js/games/blackjack/engine.js';
 
 const hand = (...specs) =>
   specs.map((spec) => ({ rank: spec.slice(0, -1), suit: spec.slice(-1) }));

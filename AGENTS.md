@@ -11,7 +11,8 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.10` (`APP_VERSION` en `js/app.js` y `js/poker.js`, `CACHE`
+- Versión actual: `v2.11` (`APP_VERSION` en
+  `js/games/blackjack/controller.js` y `js/games/poker/controller.js`, `CACHE`
   en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
 
@@ -20,9 +21,10 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 ```bash
 npm test                       # 75 tests unitarios de los dos motores (node --test)
 npm start                      # npx serve . (el service worker necesita localhost o HTTPS)
-node --check js/app.js         # chequeo de sintaxis antes de commitear
-node --check js/poker.js
-node --check js/poker-engine.js
+node --check js/games/blackjack/controller.js   # chequeo de sintaxis antes de commitear
+node --check js/games/poker/controller.js
+node --check js/games/blackjack/engine.js
+node --check js/games/poker/engine.js
 node --check sw.js
 ```
 
@@ -47,8 +49,9 @@ Playwright usa `channel: 'msedge'`, viewport 390×844 y 320×568, `isMobile` y
 - **Mobile-first**; los botones son la vía principal y los gestos un atajo.
 - Mantener el estilo del código y los nombres existentes; sin dependencias nuevas.
 - **Cada cambio en archivos que sirve la PWA** (HTML, CSS, JS, manifest, icons)
-  sube la versión en tres lugares a la vez: `APP_VERSION` en `js/app.js`,
-  `APP_VERSION` en `js/poker.js` y `CACHE` en `sw.js` (`blackjack-vX.Y`). Si no,
+  sube la versión en tres lugares a la vez: `APP_VERSION` en
+  `js/games/blackjack/controller.js`, `APP_VERSION` en
+  `js/games/poker/controller.js` y `CACHE` en `sw.js` (`blackjack-vX.Y`). Si no,
   la PWA instalada sigue mostrando la versión vieja. Los `.md` no requieren bump.
 - La versión se muestra **solo en Ajustes** (`#appVersion`, pie de la hoja).
 - Commits en español, Conventional Commits: `fix:`, `feat:`, `docs:`.
@@ -64,41 +67,55 @@ css/styles.css        layout, mesa, controles, hojas, animaciones
 css/cards.css         skin de cartas y fichas
 css/chooser.css       selector de juego
 css/poker.css         mesa, asientos y acciones de póker
-js/engine.js          reglas y cálculos puros del blackjack, sin DOM
-js/poker-engine.js    evaluador, apuestas, botes y bots, sin DOM
+js/core/storage.js    claves y lectura/escritura de localStorage
+js/core/money.js      dinero, calendario, fichas y pila de fichas
+js/core/cards.js      mazos, palos y etiquetas de cartas
+js/core/prefs.js      preferencias compartidas (tema, sonido, gestos, juego)
+js/core/wallet.js     saldo y bono diario
+js/core/gestures.js   umbrales de toque y swipe
+js/core/chips.js      fichas y hoja de agregar fichas
+js/core/ui.js         tema, sonido, avisos, instalación y hojas
 js/sound.js           Web Audio sintetizado (no tocar sin pedido)
-js/app.js             estado, DOM, persistencia, gestos, PWA
-js/poker.js           controlador del póker, turnos, bots, gestos y saldo compartido
+js/games/blackjack/engine.js       reglas y cálculos puros del blackjack, sin DOM
+js/games/blackjack/controller.js   estado, DOM, persistencia, gestos, PWA
+js/games/poker/engine.js           evaluador, apuestas, botes y bots, sin DOM
+js/games/poker/controller.js       turnos, bots, gestos y saldo compartido
 sw.js                 cache offline (subir CACHE en cada deploy)
 tests/engine.test.js  28 tests del blackjack
 tests/poker.test.js   47 tests del póker
 ```
 
+- **Capa común (`js/core/`):** todo lo que no es regla de un juego. Los
+  controladores no vuelven a definir almacenamiento, prefs, saldo, cartas,
+  fichas, avisos, hojas ni umbrales de gestos: se importan de acá. Para sumar un
+  juego nuevo: motor puro + controlador en `js/games/<juego>/`.
+- **Persistencia:** `blackjack.prefs.v1` (tema, sonido, gestos, `botLevel`,
+  `botBluff`, `botTalk`, `bigBlind`, `buyIn`, `game`) y `blackjack.progress.v1`
+  (saldo, apuesta, último saldo diario). El saldo es compartido entre los dos
+  juegos; `game` vale `'blackjack' | 'poker' | ''`. `savePrefs()` de
+  `js/core/prefs.js` mezcla el parche con lo guardado: no volver a escribirlo con
+  un objeto fijo o se pierden el nivel, los faroles, la charla, las ciegas y la
+  entrada al cambiar de juego.
 - `state.hands` **no se persiste**: al recargar se vuelve a la fase de apuesta.
 - La mesa de póker sí se persiste en `poker.table.v1`; si recargás en medio de
   una mano, se reanuda. El neto se aplica al saldo recién al terminar (`applied`).
-- Persistencia: `blackjack.prefs.v1` (tema, sonido, gestos, `botLevel`,
-  `botBluff`, `botTalk`, `bigBlind`, `buyIn`, `game`) y `blackjack.progress.v1`
-  (saldo, apuesta, último saldo diario). El saldo es compartido entre los dos
-  juegos; `game` vale `'blackjack' | 'poker' | ''`. `savePrefs()` en los dos
-  controladores conserva las claves que no toca: no volver a escribirlo con un
-  objeto fijo o se pierden el nivel, los faroles, la charla, las ciegas y la
-  entrada al cambiar de juego.
 - `index.html` redirige a `poker.html` si `game === 'poker'`; el póker guarda
   `game = 'blackjack'` antes de volver para no hacer ping-pong.
 - Clases de resultado: las cajas por mano (`.hand.is-win/.is-lose/.is-push`)
   aplican **solo** dentro de `.player-hands.is-multi` (split). En mano única el
   resultado se marca con el badge del puntaje (`.score.is-win/.is-lose`) y el
   texto de estado. No volver a poner fondo/borde al `.hand` suelto.
-- Constantes de gestos en `js/app.js`: borde 28 px, All in 90 px (aviso 45 px,
-  arrastre hasta 2500 ms), limpiar 52 px, juego 64/80 px en 0,9 s, doble toque
-  450 ms y 40 px.
-- Gestos del póker en `js/poker.js`: borde 28 px, doble toque 450 ms/40 px,
-  derecha 52 px para igualar/pasar, izquierda 90 px para retirarse (aviso a los
-  45 px) en 0,9 s. Después de retirarse, el doble toque o `#skipBtn` llaman a
-  `skipToEnd()`, que cancela `state.botTimer` y corre a los bots hasta `settled`
-  con una guarda de 500 acciones. La preferencia `gestures` es compartida con el
-  blackjack.
+- Constantes de gestos en `js/core/gestures.js` (`GESTURE_EDGE` 28,
+  `TAP_MAX_MS` 500, `DOUBLE_TAP_MS` 450, `DOUBLE_TAP_DIST` 40, `SWIPE_MAX_MS`
+  900) e `isDoubleTap()`; el blackjack suma las suyas en su controlador: All in
+  90 px (aviso 45 px, arrastre hasta 2500 ms), limpiar 52 px, juego 64/80 px en
+  0,9 s.
+- Gestos del póker en `js/games/poker/controller.js`: borde 28 px, doble toque
+  450 ms/40 px, derecha 52 px para igualar/pasar, izquierda 90 px para retirarse
+  (aviso a los 45 px) en 0,9 s. Después de retirarse, el doble toque o `#skipBtn`
+  llaman a `skipToEnd()`, que cancela `state.botTimer` y corre a los bots hasta
+  `settled` con una guarda de 500 acciones. La preferencia `gestures` es
+  compartida con el blackjack.
 - **La pantalla de juego no panea en ningún juego:** `.app` usa
   `touch-action: none` en `css/styles.css` y `.poker__table` lo repite. Los desliz
   verticales no mueven ni hacen rebotar la página, tampoco sobre las fichas. Las
@@ -107,10 +124,10 @@ tests/poker.test.js   47 tests del póker
   del panel de subida y del banner de resultado); `closeRaise()` y
   `startNewHand()` vuelven a `scrollY = 0`. No mover el bloqueo a `html`/`body`:
   rompería las hojas.
-- **Fichas beta:** están en los dos juegos, en Ajustes. El póker repite el bloque
-  de `js/app.js` (`makeChip`, `renderAddSheet`, `confirmAddFunds`) y usa
-  `available()` para el saldo de la hoja, así no cuenta lo comprometido en la
-  mano. Al confirmar se llama `saveProgress()` y `render()`.
+- **Fichas beta:** están en los dos juegos, en Ajustes. La hoja vive en
+  `createAddFundsSheet` (`js/core/chips.js`); el controlador aporta el saldo base
+  y qué pasa al confirmar. El póker usa `available()`, así no cuenta lo
+  comprometido en la mano. Al confirmar se llama `saveProgress()` y `render()`.
 - Póker: ciegas estándar `$5/$10`, `$50/$100`, `$500/$1.000`, `$5.000/$10.000`,
   `$50.000/$100.000`, `$500.000/$1.000.000`, `$5.000.000/$10.000.000` y
   `$50.000.000/$100.000.000` (`BIG_BLINDS`, ciega chica = grande / 2), más una
@@ -138,10 +155,10 @@ tests/poker.test.js   47 tests del póker
   `applyCustomBlind` guarda el borrador. `confirmTable` guarda `bigBlind` y
   `buyIn` con `savePrefs()`. La entrada se aplica desde la próxima mano.
 - Montos de subida: `raiseOptions`, `clampRaiseTarget` y `stepRaiseTarget` en
-  `js/poker-engine.js` son la única fuente de verdad. El panel usa presets
+  `js/games/poker/engine.js` son la única fuente de verdad. El panel usa presets
   (mínima, ½ pozo, pozo, all in) y pasos de una ciega chica; reutilizar esas
   funciones si se agregan gestos de subida. El all-in siempre pide confirmación.
-- **Bots (`js/poker-engine.js`):** `BOT_PROFILES` tiene `tight` (Ana),
+- **Bots (`js/games/poker/engine.js`):** `BOT_PROFILES` tiene `tight` (Ana),
   `balanced` (Beto) y `aggro` (Caro); el controlador los reparte con
   `BOT_PROFILES[(index - 1) % 3]`. `BOT_LEVELS` (`facil`/`normal`/`dificil`,
   etiquetas Fácil/Normal/Difícil) ajusta agresión, farol, tightness y `mistake`;
@@ -189,7 +206,8 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
 
 ## Verificación antes de dar algo por terminado
 
-1. `node --check` de `js/app.js`, `js/poker.js`, `js/poker-engine.js` y `sw.js`.
+1. `node --check` de `js/games/blackjack/controller.js`,
+   `js/games/poker/controller.js`, los dos `engine.js` y `sw.js`.
 2. `npm test` → 75/75 (28 de blackjack + 47 de póker).
 3. Playwright blackjack: victoria (244) y derrota (3) en mano única sin caja;
    split (18) conserva cajas redondeadas; capturas en 390×844 y 320×568; sin
