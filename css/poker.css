@@ -835,6 +835,92 @@
   outline-offset: 2px;
 }
 
+/* Si la grilla queda impar, la última pareja ocupa la fila completa. */
+.blind-grid .blind-btn:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.blind-btn--custom {
+  width: 100%;
+  margin: 0 0 8px;
+  border-style: dashed;
+  font-weight: 650;
+}
+
+.blind-btn--custom.is-on {
+  border-style: solid;
+}
+
+.custom-blind {
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.custom-blind__label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.custom-blind__field {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.custom-blind__field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.custom-blind__field input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: inherit;
+}
+
+.custom-blind__field input:focus {
+  outline: none;
+}
+
+.custom-blind .sheet__text {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+}
+
+.custom-blind__range {
+  color: var(--ink-faint);
+}
+
+.custom-blind__actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.custom-blind__actions .btn {
+  flex: 1;
+  min-height: 44px;
+}
+
 #tableChips {
   padding-inline: 2px;
 }

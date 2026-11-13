@@ -10,16 +10,51 @@ export const SB = 5;
 export const BB = 10;
 export const START_STACK = 300;
 
-// Ciegas elegibles en Ajustes. La ciega chica es siempre la mitad de la grande.
-export const BIG_BLINDS = [10, 100, 1000, 10000];
+// Ciegas estándar: la escalera 1/10 por década. Además se puede elegir una
+// ciega personalizada, siempre par y con techo saldo / 10.
+export const BIG_BLINDS = [10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000];
 export const DEFAULT_BUY_IN = 300;
 export const MIN_BUY_IN_BLINDS = 10;
 export const SUGGESTED_BUY_IN_BLINDS = 100;
+export const MIN_BIG_BLIND = 10;
+// Con ciegas de más de un décimo del saldo no se puede entrar con 10 ciegas.
+export const MAX_BLIND_DIVISOR = 10;
+// Cuántas parejas estándar se muestran en la hoja Mesa.
+export const BLIND_OPTIONS = 4;
 
-/** Ciega grande válida o la de siempre. */
+/** Entero par hacia abajo; 0 si no es un número usable. */
+function evenAtMost(value) {
+  const n = Math.floor(Number(value) || 0);
+  return n - (n % 2);
+}
+
+/** Ciega grande válida: par y de al menos 10. */
 export function normalizeBigBlind(value) {
-  const bb = Math.floor(Number(value));
-  return BIG_BLINDS.includes(bb) ? bb : BB;
+  const bb = evenAtMost(value);
+  return bb >= MIN_BIG_BLIND ? bb : BB;
+}
+
+/** Techo de la ciega grande: un décimo del saldo, para entrar con 10 ciegas. */
+export function maxBigBlind(balance) {
+  return evenAtMost(Math.floor(Number(balance) || 0) / MAX_BLIND_DIVISOR);
+}
+
+/** Ajusta una ciega escrita a mano: par, mínimo 10 y techo saldo / 10. */
+export function customBigBlind(value, balance) {
+  const top = maxBigBlind(balance);
+  if (top < MIN_BIG_BLIND) return null;
+  const bb = Math.max(MIN_BIG_BLIND, Math.min(top, evenAtMost(value)));
+  return bb >= MIN_BIG_BLIND ? bb : null;
+}
+
+/** Parejas estándar que se ofrecen, más la que ya tenías si entra en el saldo. */
+export function blindOptions(balance, current = BB) {
+  const top = maxBigBlind(balance);
+  const list = BIG_BLINDS.filter((bb) => bb <= top).slice(-BLIND_OPTIONS);
+  const actual = customBigBlind(current, balance);
+  if (actual && BIG_BLINDS.includes(actual) && !list.includes(actual)) list.push(actual);
+  list.sort((a, b) => a - b);
+  return list.length ? list : [BB];
 }
 
 /** Entrada jugable: nunca por debajo de 10 ciegas grandes ni por encima del saldo. */

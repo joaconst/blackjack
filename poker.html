@@ -344,6 +344,20 @@
           <h3>Ciegas</h3>
           <div class="blind-grid" id="blindGrid" role="radiogroup" aria-label="Ciegas"></div>
           <p class="sheet__text" id="blindHint">La ciega chica y la grande se ponen al repartir.</p>
+          <button type="button" class="blind-btn blind-btn--custom" id="customBlindBtn" aria-expanded="false" aria-controls="customBlindPanel">Otra ciega…</button>
+          <div class="custom-blind" id="customBlindPanel" hidden>
+            <label class="custom-blind__label" for="customBlindInput">Ciega grande</label>
+            <div class="custom-blind__field">
+              <span class="custom-blind__sign" aria-hidden="true">$</span>
+              <input id="customBlindInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="customBlindRange customBlindPreview">
+            </div>
+            <p class="sheet__text custom-blind__preview" id="customBlindPreview">Escribí la ciega grande.</p>
+            <p class="sheet__text custom-blind__range" id="customBlindRange">Entre $10 y $100.000</p>
+            <div class="custom-blind__actions">
+              <button type="button" class="btn btn--soft" id="customBlindCancel">Cancelar</button>
+              <button type="button" class="btn btn--primary" id="customBlindUse" aria-label="Usar esta ciega">Usar ciega</button>
+            </div>
+          </div>
         </section>
 
         <section class="sheet__section">

@@ -4,6 +4,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/app.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v2.10] — 2026-11-13
+
+### Agregado
+- **Ciegas a medida:** la hoja Mesa muestra las cuatro parejas estándar más
+  grandes que entran en el saldo (hasta `$50.000.000/$100.000.000`) y suma
+  **“Otra ciega…”** para escribir la ciega grande a mano. La chica es siempre la
+  mitad exacta: la grande se ajusta al par de abajo. El máximo es **saldo ÷ 10**
+  (para poder entrar con 10 ciegas grandes) y se avisa el techo en vez de
+  recortar en silencio.
+- Las etiquetas de la grilla se acortan (`$50k/$100k`, `$50M/$100M`) para que
+  entren en 320 px; la pista y los avisos siguen mostrando el monto completo.
+
+### Cambiado
+- `normalizeBigBlind` acepta cualquier ciega par desde `$10`, no solo la lista
+  fija, así la ciega personalizada persiste al recargar.
+- Si la grilla queda impar, la última pareja ocupa la fila completa.
+- `APP_VERSION = 'v2.10'`, `CACHE = 'blackjack-v2.10'`.
+
 ## [v2.9] — 2026-11-13
 
 ### Corregido

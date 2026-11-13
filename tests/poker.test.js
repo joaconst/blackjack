@@ -7,6 +7,7 @@ import {
   BOT_BLUFF_LEVELS,
   BOT_LEVELS,
   DEFAULT_BUY_IN,
+  MIN_BIG_BLIND,
   MIN_BUY_IN_BLINDS,
   SB,
   START_STACK,
@@ -14,16 +15,19 @@ import {
   applyAction,
   advance,
   bestHand,
+  blindOptions,
   boardTexture,
   botAction,
   clampBuyIn,
   clampRaiseTarget,
   compareScores,
   createTable,
+  customBigBlind,
   drawInfo,
   equity,
   evaluate5,
   legalActions,
+  maxBigBlind,
   normalizeBigBlind,
   normalizeBluffLevel,
   normalizeBotLevel,
@@ -745,10 +749,36 @@ test('la entrada no tiene tope: se limita solo por el saldo', () => {
   assert.equal(suggestedBuyIn(500, 100), 500);
 });
 
-test('normalizeBigBlind solo acepta las ciegas de la lista', () => {
+test('normalizeBigBlind acepta cualquier ciega par desde 10', () => {
   for (const bb of BIG_BLINDS) assert.equal(normalizeBigBlind(bb), bb);
-  assert.equal(normalizeBigBlind(500), BB);
+  assert.equal(normalizeBigBlind(500), 500);
   assert.equal(normalizeBigBlind('100'), 100);
+  assert.equal(normalizeBigBlind(25001), 25000);
+  assert.equal(normalizeBigBlind(7), BB);
+  assert.equal(normalizeBigBlind('nada'), BB);
+});
+
+test('la ciega personalizada es par y no pasa de un décimo del saldo', () => {
+  assert.equal(maxBigBlind(1000000), 100000);
+  assert.equal(maxBigBlind(1000000000), 100000000);
+  assert.equal(maxBigBlind(505), 50);
+  assert.equal(customBigBlind(25000, 1000000), 25000);
+  assert.equal(customBigBlind(25001, 1000000), 25000);
+  assert.equal(customBigBlind(5, 1000000), MIN_BIG_BLIND);
+  assert.equal(customBigBlind(500000, 1000000), 100000);
+  assert.equal(customBigBlind(25000, 5), null);
+  assert.equal(clampBuyIn(0, 1000000, 25000), 25000 * MIN_BUY_IN_BLINDS);
+  assert.equal(suggestedBuyIn(1000000, 25000), 1000000);
+});
+
+test('blindOptions ofrece las parejas grandes y conserva la actual', () => {
+  assert.deepEqual(blindOptions(300, 10), [10]);
+  assert.deepEqual(blindOptions(1000000, 100000), [100, 1000, 10000, 100000]);
+  assert.deepEqual(blindOptions(1000000, 10), [10, 100, 1000, 10000, 100000]);
+  assert.deepEqual(blindOptions(1000000000, 100000000), [
+    100000, 1000000, 10000000, 100000000,
+  ]);
+  assert.deepEqual(blindOptions(5, 10), [BB]);
 });
 
 test('las ciegas altas redondean las subidas y conservan las fichas', () => {

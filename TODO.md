@@ -10,8 +10,9 @@ Marcar con `[x]` al terminar y borrar lo descartado.
       abrir la app.
 - [ ] Jugar unas manos con cada nivel de bots en un teléfono real y ajustar si
       Difícil queda demasiado difícil o Fácil demasiado fácil.
-- [ ] Probar las ciegas altas ($500/$1.000 y $5.000/$10.000) y una entrada grande
-      en un teléfono real: legibilidad, fichas y confirmación del all-in.
+- [ ] Probar las ciegas altas ($50.000/$100.000 y $50.000.000/$100.000.000) y
+      una entrada grande en un teléfono real: legibilidad, fichas y confirmación
+      del all-in.
 - [ ] Sentir en la mesa las frecuencias de faroles (Pocos, Normal, Muchos) y
       ajustar los multiplicadores si Muchos resulta demasiado o Pocos pasa
       desapercibido.
@@ -38,6 +39,7 @@ Marcar con `[x]` al terminar y borrar lo descartado.
 - [x] Bots con niveles Fácil/Normal/Difícil, lectura de board, proyectos, faroles
       y charla que puede mentir.
 - [x] Ciegas elegibles, entrada por mano sin tope y hoja Mesa con fichas.
+- [x] Escalera de ciegas adaptable al saldo y ciega personalizada (v2.10).
 - [x] Control de faroles de Sin a Muchos y faroles más visibles en la charla.
 - [x] Agregar gestos de póker: retirarse, igualar/pasar, abrir la subida y ver el
       final después de retirarse.

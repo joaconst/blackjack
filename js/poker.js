@@ -15,14 +15,18 @@ import {
   BOT_BLUFF_LEVELS,
   BOT_LEVELS,
   DEFAULT_BUY_IN,
+  MIN_BIG_BLIND,
   MIN_BUY_IN_BLINDS,
   applyAction,
   advance as advanceTable,
+  blindOptions,
   botAction,
   clampBuyIn,
   clampRaiseTarget,
   createTable,
+  customBigBlind,
   legalActions,
+  maxBigBlind,
   normalizeBigBlind,
   normalizeBluffLevel,
   normalizeBotLevel,
@@ -38,7 +42,7 @@ import { sound, unlockSoundOnGesture } from './sound.js';
 const PREFS_KEY = 'blackjack.prefs.v1';
 const PROGRESS_KEY = 'blackjack.progress.v1';
 const TABLE_KEY = 'poker.table.v1';
-const APP_VERSION = 'v2.9';
+const APP_VERSION = 'v2.10';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 // Ana juega tight, Beto balanced y Caro aggro.
@@ -143,6 +147,13 @@ const els = {
   tableAfter: document.getElementById('tableAfter'),
   blindGrid: document.getElementById('blindGrid'),
   blindHint: document.getElementById('blindHint'),
+  customBlindBtn: document.getElementById('customBlindBtn'),
+  customBlindPanel: document.getElementById('customBlindPanel'),
+  customBlindInput: document.getElementById('customBlindInput'),
+  customBlindPreview: document.getElementById('customBlindPreview'),
+  customBlindRange: document.getElementById('customBlindRange'),
+  customBlindUse: document.getElementById('customBlindUse'),
+  customBlindCancel: document.getElementById('customBlindCancel'),
   tableMinHint: document.getElementById('tableMinHint'),
   tableChips: document.getElementById('tableChips'),
   tableMax: document.getElementById('tableMax'),
@@ -1302,6 +1313,7 @@ function confirmAddFunds() {
 
 let tableDraft = { bb: 10, entry: DEFAULT_BUY_IN };
 let lastFocusedTable = null;
+let customBlindOpen = false;
 
 function makeEntryChip(value) {
   const node = document.createElement('button');
@@ -1320,24 +1332,61 @@ function buildTableChips() {
   els.tableChips.replaceChildren(...CHIP_TIERS.map((value) => makeEntryChip(value)));
 }
 
-function buildBlindGrid() {
-  els.blindGrid.replaceChildren(
-    ...BIG_BLINDS.map((bb) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'blind-btn';
-      button.dataset.blind = String(bb);
-      button.setAttribute('role', 'radio');
-      button.setAttribute('aria-checked', 'false');
-      button.textContent = `${money(bb / 2)}/${money(bb)}`;
-      return button;
-    }),
-  );
+/* Etiquetas cortas para que las parejas grandes entren en 320 px. La pista y
+   los avisos siguen usando `money()` completo. */
+function shortAmount(value) {
+  const n = Math.round(value * 10) / 10;
+  return Number.isInteger(n) ? String(n) : String(n).replace('.', ',');
 }
 
+function blindMoney(value) {
+  if (value >= 1000000) return `$${shortAmount(value / 1000000)}M`;
+  if (value >= 1000) return `$${shortAmount(value / 1000)}k`;
+  return `$${value}`;
+}
+
+function blindLabel(bb) {
+  return `${blindMoney(bb / 2)}/${blindMoney(bb)}`;
+}
+
+function makeBlindButton(bb) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'blind-btn';
+  button.dataset.blind = String(bb);
+  button.setAttribute('role', 'radio');
+  button.setAttribute('aria-checked', 'false');
+  button.setAttribute('aria-label', `Ciegas ${money(bb / 2)} y ${money(bb)}`);
+  button.textContent = blindLabel(bb);
+  return button;
+}
+
+let blindSignature = '';
+
 function affordableBlind(base) {
-  const list = BIG_BLINDS.filter((bb) => bb <= base);
+  const top = maxBigBlind(base);
+  const list = BIG_BLINDS.filter((bb) => bb <= top);
   return list.length ? list[list.length - 1] : state.bigBlind;
+}
+
+function renderBlindGrid(base, bb) {
+  const options = blindOptions(base, bb);
+  const signature = options.join(',');
+  if (signature !== blindSignature) {
+    blindSignature = signature;
+    els.blindGrid.replaceChildren(...options.map(makeBlindButton));
+  }
+  for (const button of els.blindGrid.children) {
+    const value = Number(button.dataset.blind);
+    const active = value === bb;
+    button.classList.toggle('is-on', active);
+    button.setAttribute('aria-checked', String(active));
+    button.disabled = base < value;
+  }
+  const custom = !BIG_BLINDS.includes(bb);
+  els.customBlindBtn.classList.toggle('is-on', custom);
+  els.customBlindBtn.textContent = custom ? blindLabel(bb) : 'Otra ciega…';
+  els.customBlindBtn.setAttribute('aria-pressed', String(custom));
 }
 
 function renderTableSheet() {
@@ -1347,13 +1396,7 @@ function renderTableSheet() {
   const entry = Math.min(Math.max(0, tableDraft.entry), base);
   const short = base < bb;
 
-  for (const button of els.blindGrid.children) {
-    const value = Number(button.dataset.blind);
-    const active = value === bb;
-    button.classList.toggle('is-on', active);
-    button.setAttribute('aria-checked', String(active));
-    button.disabled = base < value;
-  }
+  renderBlindGrid(base, bb);
 
   els.tableTotal.textContent = money(entry);
   els.tableAfter.textContent = `Tenés ${money(base)}`;
@@ -1386,11 +1429,16 @@ function openTableSheet() {
   }
   lastFocusedTable = document.activeElement;
   const base = available();
-  const bb = base >= state.bigBlind ? state.bigBlind : affordableBlind(base);
+  const top = maxBigBlind(base);
+  const bb = state.bigBlind <= top ? state.bigBlind : affordableBlind(base);
   tableDraft = {
     bb,
     entry: clampBuyIn(state.buyIn, base, bb),
   };
+  customBlindOpen = false;
+  els.customBlindPanel.hidden = true;
+  els.customBlindBtn.setAttribute('aria-expanded', 'false');
+  blindSignature = '';
   renderTableSheet();
   els.tableSheet.hidden = false;
   document.body.classList.add('has-sheet');
@@ -1405,13 +1453,76 @@ function closeTableSheet() {
   }
 }
 
+function setBlind(bb) {
+  tableDraft.bb = bb;
+  tableDraft.entry = suggestedBuyIn(available(), bb);
+}
+
 function chooseBlind(value) {
   const bb = Number(value);
   if (!BIG_BLINDS.includes(bb) || bb === tableDraft.bb) return;
-  tableDraft.bb = bb;
-  tableDraft.entry = suggestedBuyIn(available(), bb);
+  setBlind(bb);
   if (state.sound) sound.play('tick');
   renderTableSheet();
+}
+
+/* Ciega escrita a mano: la grande manda, la chica es siempre la mitad. */
+function readCustomBlind() {
+  const base = available();
+  const top = maxBigBlind(base);
+  const raw = Number(els.customBlindInput.value.replace(/\D/g, ''));
+  if (!els.customBlindInput.value) return { bb: null, reason: 'empty', top, raw };
+  if (!Number.isFinite(raw) || raw < MIN_BIG_BLIND) {
+    return { bb: null, reason: 'min', top, raw };
+  }
+  if (raw > top) return { bb: null, reason: 'max', top, raw };
+  const bb = raw - (raw % 2);
+  return { bb: bb >= MIN_BIG_BLIND ? bb : null, reason: bb === raw ? '' : 'even', top, raw };
+}
+
+function renderCustomBlind() {
+  const { bb, reason, top } = readCustomBlind();
+  els.customBlindRange.textContent = `Entre ${money(MIN_BIG_BLIND)} y ${money(top)}`;
+  els.customBlindUse.disabled = !bb;
+  els.customBlindPreview.textContent =
+    reason === 'max'
+      ? `El máximo con tu saldo es ${money(top)}.`
+      : reason === 'min'
+        ? `La ciega mínima es ${money(MIN_BIG_BLIND)}.`
+        : reason === 'even'
+          ? `Queda en ${money(bb / 2)}/${money(bb)}: la grande tiene que ser par.`
+          : bb
+            ? `Ciega chica ${money(bb / 2)} · grande ${money(bb)}.`
+            : 'Escribí la ciega grande.';
+}
+
+function openCustomBlind() {
+  customBlindOpen = true;
+  els.customBlindPanel.hidden = false;
+  els.customBlindBtn.setAttribute('aria-expanded', 'true');
+  els.customBlindInput.value = String(tableDraft.bb);
+  renderCustomBlind();
+  els.customBlindInput.focus({ preventScroll: true });
+  els.customBlindInput.select();
+  els.customBlindPanel.scrollIntoView({ block: 'nearest' });
+  if (state.sound) sound.play('tick');
+}
+
+function closeCustomBlind({ focus = false } = {}) {
+  customBlindOpen = false;
+  els.customBlindPanel.hidden = true;
+  els.customBlindBtn.setAttribute('aria-expanded', 'false');
+  if (focus) els.customBlindBtn.focus({ preventScroll: true });
+}
+
+function applyCustomBlind() {
+  const { bb } = readCustomBlind();
+  if (!bb) return;
+  setBlind(bb);
+  closeCustomBlind();
+  renderTableSheet();
+  if (state.sound) sound.play('unlockTier');
+  toast(`Mesa ${money(bb / 2)}/${money(bb)}`);
 }
 
 function addEntryChip(value) {
@@ -1821,6 +1932,23 @@ els.blindGrid.addEventListener('click', (event) => {
   if (!button || button.disabled) return;
   chooseBlind(button.dataset.blind);
 });
+els.customBlindBtn.addEventListener('click', () => {
+  if (customBlindOpen) closeCustomBlind({ focus: true });
+  else openCustomBlind();
+});
+els.customBlindCancel.addEventListener('click', () => closeCustomBlind({ focus: true }));
+els.customBlindUse.addEventListener('click', applyCustomBlind);
+els.customBlindInput.addEventListener('input', () => {
+  const digits = els.customBlindInput.value.replace(/\D/g, '').slice(0, 12);
+  if (digits !== els.customBlindInput.value) els.customBlindInput.value = digits;
+  renderCustomBlind();
+});
+els.customBlindInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    applyCustomBlind();
+  }
+});
 els.tableChips.addEventListener('click', (event) => {
   const chip = event.target.closest('.chip');
   if (!chip || chip.disabled) return;
@@ -1894,7 +2022,6 @@ applyBotTalk();
 buildBoard();
 buildAddChips();
 buildTableChips();
-buildBlindGrid();
 unlockSoundOnGesture();
 savePrefs();
 
