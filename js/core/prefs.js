@@ -2,7 +2,7 @@
 
 import { PREFS_KEY, readStored, writeStored } from './storage.js';
 
-const GAMES = ['blackjack', 'poker'];
+const GAMES = ['blackjack', 'poker', 'slots'];
 
 /** Normaliza solo las claves comunes; las de cada juego pasan tal cual. */
 export function normalizePrefs(source = {}) {

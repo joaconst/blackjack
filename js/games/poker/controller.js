@@ -67,7 +67,7 @@ import {
 } from '../../core/gestures.js';
 import { sound, unlockSoundOnGesture } from '../../sound.js';
 
-const APP_VERSION = 'v2.11';
+const APP_VERSION = 'v2.12';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 // Ana juega tight, Beto balanced y Caro aggro.
@@ -1349,7 +1349,7 @@ function switchGame() {
     state.table = null;
     saveTable();
   }
-  saveStoredPrefs({ game: 'blackjack' });
+  saveStoredPrefs({ game: '' });
   location.href = 'index.html';
 }
 

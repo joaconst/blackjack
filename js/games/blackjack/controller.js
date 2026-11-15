@@ -55,7 +55,7 @@ import {
 } from '../../core/gestures.js';
 import { sound, unlockSoundOnGesture } from '../../sound.js';
 
-const APP_VERSION = 'v2.11';
+const APP_VERSION = 'v2.12';
 const money = formatMoney;
 let resetting = false;
 
@@ -1413,14 +1413,14 @@ function closePicker(force = false) {
 }
 
 function chooseGame(game) {
-  if (game === 'poker') {
+  if (game === 'poker' || game === 'slots') {
     if (handInProgress()) {
       toast('Terminá la mano para cambiar de juego');
       return;
     }
-    state.game = 'poker';
+    state.game = game;
     savePrefs();
-    location.href = 'poker.html';
+    location.href = game === 'poker' ? 'poker.html' : 'slots.html';
     return;
   }
 
@@ -1516,6 +1516,7 @@ window.addEventListener('pagehide', save);
 /* ---------- Arranque ---------- */
 
 if (state.game === 'poker') location.replace('poker.html');
+else if (state.game === 'slots') location.replace('slots.html');
 
 applyTheme();
 applySound();

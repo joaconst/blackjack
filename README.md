@@ -1,14 +1,14 @@
 # Mesa
 
-Blackjack y póker mobile. Sin frameworks ni build: HTML,
+Blackjack, póker y tragamonedas mobile. Sin frameworks ni build: HTML,
 CSS y JS puro. Se puede instalar como app en el celular (PWA) y funciona offline.
 
 ## Elegir juego
 
-La primera vez la app pregunta si querés jugar al **Blackjack** o al **Póker**.
-La elección queda guardada y se puede cambiar en **Ajustes → Juego** (o desde la
-hoja de ajustes del póker). Los dos juegos comparten el mismo saldo y el mismo
-bono diario.
+La primera vez la app pregunta si querés jugar al **Blackjack**, al **Póker** o a
+la **Tragamonedas**. La elección queda guardada y se puede cambiar en
+**Ajustes → Juego** (o desde la hoja de ajustes del póker y de la máquina). Los
+tres juegos comparten el mismo saldo y el mismo bono diario.
 
 ## Blackjack
 
@@ -154,6 +154,39 @@ el blackjack.
   Ajustes sí scrollea, porque vive fuera del área de juego.
 - El all in sigue en el panel de subida, con confirmación.
 
+## Tragamonedas
+
+Máquina clásica de **3 rodillos × 3 filas** con **5 líneas fijas**: arriba,
+medio, abajo, V y montaña. Gana la línea en la que los tres símbolos son
+iguales; el pago es el multiplicador × la apuesta total (no × línea) y las
+líneas premiadas se suman.
+
+- Símbolos y pagos por línea: **trébol ×2**, **corazón ×3**, **pica ×5**,
+  **diamante ×10**, **estrella ×25** y **7 ×80**.
+- Apuesta mínima **$5**, sin máximo más que tu saldo. Las fichas rápidas son
+  $5, $10, $25, $100 y $500; **Otro monto** abre una hoja para escribir cualquier
+  peso entero y el monto **queda guardado** para la próxima vez.
+- El resultado se define antes de que frenen los rodillos. El saldo se aplica al
+  instante: mientras giran, el saldo visible ya descontó la apuesta y el premio
+  aparece recién al final.
+- Las celdas de las líneas ganadoras se marcan en dorado y el marcador dice qué
+  línea pagó y con qué multiplicador.
+- A largo plazo devuelve el **95,15%** de lo apostado y hay premio en el
+  **22,67%** de los giros (uno cada 4,4). Sin comodín, dispersión, tiradas
+  gratis ni giros automáticos.
+- El saldo es el mismo de los otros juegos y el bono diario corre igual.
+
+### Gestos de la máquina
+
+Se pueden apagar en **Ajustes → Gestos** y la preferencia se comparte con el
+blackjack y el póker.
+
+- **Doble toque con la máquina quieta:** gira con la misma apuesta.
+- **Doble toque durante el giro:** acelera los rodillos (0,28× del tiempo
+  restante) sin saltear el resultado.
+- Empezá el gesto lejos del borde (unos 28 px) para no chocar con el gesto de
+  atrás del teléfono. Los botones siguen siendo la vía principal.
+
 ### Saldo diario
 
 Una vez por día, si tu saldo queda por debajo de **$500**, se completa hasta $500.
@@ -161,8 +194,8 @@ Si tenés $500 o más, no se agrega nada. Si te quedás sin saldo después de us
 el bono del día, la pantalla de espera muestra cuánto falta para la medianoche.
 
 El progreso (saldo, apuesta, bono diario y última apuesta) se guarda aparte de
-las preferencias (tema, sonido, gestos, juego elegido, nivel y charla de los bots
-y si ya viste la ayuda).
+las preferencias (tema, sonido, gestos, juego elegido, apuesta de la máquina,
+nivel y charla de los bots y si ya viste la ayuda).
 Reiniciar el progreso borra solo lo primero: el tema, el sonido y los ajustes se
 mantienen. La clave vieja `blackjack.state.v1` se migra automáticamente
 a `blackjack.progress.v1` y `blackjack.prefs.v1`.
@@ -195,7 +228,7 @@ configurar nada más.
 En Android/Chrome aparece el botón de instalar nativo. En iOS, la app detecta
 Safari y muestra los pasos con el botón de instalación.
 
-En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.11`). Si
+En **Ajustes**, al final, la app muestra la versión instalada (`versión v2.12`). Si
 ves una versión vieja o no ves la etiqueta, cerrá y volvé a abrir la app para que
 el service worker tome la actualización.
 
@@ -225,19 +258,27 @@ otra con ciegas altas para verificar que las fichas cierren y que las subidas se
 redondeen a la ciega chica. Hay tests de ciegas y entrada: sin tope de mesa, techo
 en el saldo, mínimo de 10 ciegas grandes y entrada sugerida de 100.
 
+Los tests de la tragamonedas cubren la tira (que los conteos coincidan), las
+cinco líneas, las posiciones y la grilla, los pagos por línea, la suma de líneas
+simultáneas, el neto del giro, la apuesta entera y recortada al saldo, las fichas
+rápidas disponibles, el RTP exacto enumerando las 27.000 combinaciones y la
+frecuencia de premio.
+
 Los gestos de la mesa y el salto al final se prueban aparte con Playwright y
-toque real simulado.
+toque real simulado, igual que el doble toque de la tragamonedas.
 
 ## Estructura
 
 ```
 index.html             blackjack y selector de juego
 poker.html             mesa de póker
+slots.html             tragamonedas y hojas
 css/tokens.css         colores, tipografía y medidas globales
 css/styles.css         layout, mesa, controles, hojas y animaciones
 css/cards.css          aspecto de cartas y fichas (el "skin")
 css/chooser.css        selector de juego
 css/poker.css          mesa, asientos y acciones de póker
+css/slots.css          gabinete, rodillos y tabla de pagos
 js/core/storage.js     claves y lectura/escritura de localStorage
 js/core/money.js       dinero, calendario, fichas y armado de la pila
 js/core/cards.js       mazos, palos y etiquetas de cartas
@@ -251,17 +292,23 @@ js/games/blackjack/engine.js       reglas y cálculos del blackjack, sin DOM
 js/games/blackjack/controller.js   interfaz del blackjack, estado y gestos
 js/games/poker/engine.js           evaluador, apuestas, botes y bots, sin DOM
 js/games/poker/controller.js       interfaz del póker, turnos y saldo compartido
+js/games/slots/engine.js           tira, líneas, pagos y giro, sin DOM
+js/games/slots/controller.js       interfaz de la máquina, rodillos y apuesta
 manifest.webmanifest
 sw.js                  cache offline
 icons/
 tests/engine.test.js
 tests/poker.test.js
+tests/slots.test.js
 ```
 
-Los dos juegos comparten `js/core/`: ahí vive todo lo que no es regla de un juego
-(almacenamiento, saldo, preferencias, cartas, fichas, gestos e interfaz). Para
-sumar un juego nuevo alcanza con un motor puro y un controlador en
+Los tres juegos comparten `js/core/`: ahí vive todo lo que no es regla de un
+juego (almacenamiento, saldo, preferencias, cartas, fichas, gestos e interfaz).
+Para sumar un juego nuevo alcanza con un motor puro y un controlador en
 `js/games/<juego>/` que importe esa capa.
+
+La tragamonedas es el ejemplo más chico: `engine.js` no toca el DOM (recibe el
+`rng` por parámetro), así que el RTP y los pagos se testean con Node.
 
 ## Cambiar el estilo de cartas y fichas
 
@@ -310,19 +357,21 @@ La pila de la mesa se arma en `chipStack()` con `--chip-stack-size`,
 ## Notas
 
 - Si cambiás archivos y ya probaste la PWA, subí la versión de `CACHE` en
-  `sw.js` (por ejemplo `blackjack-v2.11` → `blackjack-v2.12`) y `APP_VERSION` en
-  `js/games/blackjack/controller.js` y `js/games/poker/controller.js` para que se
-  actualice el cache y la versión que se muestra en Ajustes.
+  `sw.js` (por ejemplo `blackjack-v2.12` → `blackjack-v2.13`) y `APP_VERSION` en
+  `js/games/blackjack/controller.js`, `js/games/poker/controller.js` y
+  `js/games/slots/controller.js` para que se actualice el cache y la versión que
+  se muestra en Ajustes.
 - Reiniciar progreso está en **Ajustes → Progreso**. Pide confirmación y borra
   saldo, apuesta, mesa de blackjack y mesa de póker; conserva tema, sonido y
   gestos.
-- El saldo es uno solo para los dos juegos y el bono diario también. En póker, el
+- El saldo es uno solo para los tres juegos y el bono diario también. En póker, el
   saldo visible durante una mano descuenta lo comprometido en la mesa; el neto
   se aplica al terminar.
 - El botón de tema arranca siguiendo al sistema; una vez que lo tocás, queda
   guardada tu elección.
-- La apuesta se guarda en múltiplos de $5; **All in** permite saldos que no son
-  múltiplos de la ficha mínima.
+- La apuesta del blackjack se guarda en múltiplos de $5; **All in** permite saldos
+  que no son múltiplos de la ficha mínima. En la tragamonedas la apuesta es
+  cualquier entero desde $5.
 - El modo beta es temporal y está pensado para pruebas, no para la versión final.
 - **Split:** dos cartas del mismo valor, hasta 4 manos. Los ases reciben una sola
   carta y se plantan solos; el 21 post-split paga 1:1 y se puede doblar después

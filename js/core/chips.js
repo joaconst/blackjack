@@ -13,11 +13,11 @@ export function chipIndex(value) {
   return index < 0 ? 0 : index;
 }
 
-export function makeChip(value, { button = true } = {}) {
+export function makeChip(value, { button = true, verb = 'Agregar' } = {}) {
   const node = document.createElement(button ? 'button' : 'span');
   if (button) {
     node.type = 'button';
-    node.setAttribute('aria-label', `Agregar ${formatMoney(value)}`);
+    node.setAttribute('aria-label', `${verb} ${formatMoney(value)}`);
   } else {
     node.setAttribute('aria-hidden', 'true');
   }

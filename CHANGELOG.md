@@ -2,8 +2,49 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
-`js/games/blackjack/controller.js` y `js/games/poker/controller.js`; el cache del
-service worker usa `blackjack-vX.Y`.
+`js/games/blackjack/controller.js`, `js/games/poker/controller.js` y
+`js/games/slots/controller.js`; el cache del service worker usa `blackjack-vX.Y`.
+
+## [v2.12] — 2026-11-15
+
+### Agregado
+- **Tragamonedas clásica** (`slots.html`): tercer juego de la app, 3 rodillos ×
+  3 filas con **5 líneas fijas** (arriba, medio, abajo, V y montaña). Gana la
+  línea con los tres símbolos iguales; el pago es el multiplicador × la apuesta
+  total y las líneas premiadas se suman.
+- Símbolos y pagos por línea: trébol ×2, corazón ×3, pica ×5, diamante ×10,
+  estrella ×25 y 7 ×80. Con la tira de 30 posiciones (8/7/6/5/3/1) el **RTP es
+  95,15%** y hay premio en el **22,67%** de los giros (uno cada 4,4).
+- **Apuesta flexible:** fichas rápidas de $5, $10, $25, $100 y $500 más
+  **“Otro monto”** para escribir cualquier peso entero desde $5 hasta el saldo.
+  El monto se guarda en `slotsBet` y se reajusta solo si el saldo baja.
+- **Gestos:** doble toque con la máquina quieta **repite la apuesta**; doble
+  toque durante el giro **acelera los rodillos** (0,28× del tiempo restante, sin
+  saltear el resultado). Se apagan desde Ajustes, como en los otros juegos.
+- El resultado se calcula antes de animar y el saldo se aplica al instante: si
+  recargás en medio del giro, la plata ya está contada. Mientras corren los
+  rodillos el saldo visible descuenta la apuesta y esconde el premio.
+- Ajustes con la tabla de pagos, el RTP, los gestos y el botón para cambiar de
+  juego. Mismas hojas, fichas beta, bono diario y tema que el resto.
+
+### Cambiado
+- El selector de `index.html` tiene **tres tarjetas** (blackjack, póker y
+  tragamonedas) y redirige a `slots.html` si el juego guardado es `slots`.
+- `'slots'` se suma a los juegos válidos de `js/core/prefs.js`.
+- **Cambiar de juego** desde el póker ahora vuelve al selector (antes saltaba
+  directo al blackjack), así se puede elegir la tragamonedas. La tragamonedas
+  también vuelve al selector y guarda `game = ''`; al salir solo persiste el
+  saldo, así el selector no rebota a la máquina.
+- El aviso flotante se ubica arriba del panel de apuesta midiendo su alto: si no,
+  en pantallas de 568 px tapaba el botón **Girar**.
+- `makeChip` acepta `{ verb }`: las fichas de la máquina dicen “Apostar” y las
+  de la hoja “Usar”, sin tocar el resto de los juegos.
+- `sw.js` precachea `slots.html`, `css/slots.css` y los dos módulos del juego, y
+  usa `CACHE = 'blackjack-v2.12'`.
+
+### Tests
+- `npm test` pasa a **93/93**: 18 tests nuevos en `tests/slots.test.js`, incluido
+  el RTP exacto por enumeración de las 27.000 combinaciones.
 
 ## [v2.11] — 2026-11-13
 

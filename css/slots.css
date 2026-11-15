@@ -1,0 +1,551 @@
+﻿/* =========================================================
+   Tragamonedas
+   El gabinete y los rodillos usan tokens propios para que el
+   tema oscuro no pierda contraste. El resto (botones, fichas,
+   hojas) viene de styles.css y cards.css.
+   ========================================================= */
+
+:root {
+  --slot-gold: #d9a441;
+  --slot-gold-soft: rgba(217, 164, 65, 0.22);
+  --slot-gold-line: rgba(217, 164, 65, 0.34);
+  --slot-paper: #fbf7ea;
+  --slot-paper-2: #f4eeda;
+  --slot-paper-line: rgba(30, 40, 32, 0.1);
+  --slot-ink: #2b2f2a;
+  --slot-cabinet-a: #1a4a35;
+  --slot-cabinet-b: #0f2f22;
+  --slot-head: #f6efdf;
+  --slot-head-soft: rgba(246, 239, 223, 0.62);
+  --slot-win-soft: rgba(217, 164, 65, 0.26);
+  --slot-sym-trebol: #1c6647;
+  --slot-sym-corazon: #b23b31;
+  --slot-sym-pica: #272b28;
+  --slot-sym-diamante: #b23b31;
+  --slot-sym-estrella: #b07f14;
+  --slot-sym-siete: #9a6510;
+}
+
+:root[data-theme="dark"] {
+  --slot-gold: #e8c06d;
+  --slot-gold-soft: rgba(232, 192, 109, 0.18);
+  --slot-gold-line: rgba(232, 192, 109, 0.28);
+  --slot-paper: #1b211c;
+  --slot-paper-2: #161b16;
+  --slot-paper-line: rgba(238, 240, 233, 0.08);
+  --slot-ink: #eef0e9;
+  --slot-cabinet-a: #16211b;
+  --slot-cabinet-b: #0c120e;
+  --slot-head: #f6efdf;
+  --slot-head-soft: rgba(246, 239, 223, 0.55);
+  --slot-win-soft: rgba(232, 192, 109, 0.2);
+  --slot-sym-trebol: #6fd3a2;
+  --slot-sym-corazon: #ef8d83;
+  --slot-sym-pica: #e7eae3;
+  --slot-sym-diamante: #ef8d83;
+  --slot-sym-estrella: #e8c06d;
+  --slot-sym-siete: #e8c06d;
+}
+
+/* ---------- Mesa ---------- */
+
+.slots {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+.slot-cabinet {
+  --reel-cell: clamp(54px, 16.2vw, 66px);
+
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  width: 100%;
+  padding: 13px 13px 14px;
+  border: 1px solid var(--slot-gold-line);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.08), transparent 60%),
+    linear-gradient(180deg, var(--slot-cabinet-a), var(--slot-cabinet-b));
+  box-shadow:
+    0 24px 38px -30px rgba(8, 20, 12, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: box-shadow 0.2s ease, outline-color 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.slot-cabinet.is-gesturing {
+  outline-color: var(--slot-gold-soft);
+}
+
+.slot-cabinet__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+  padding: 0 2px;
+}
+
+.slot-cabinet__mark {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--slot-gold-soft);
+  color: var(--slot-gold);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.slot-cabinet__name {
+  margin: 0;
+  color: var(--slot-head);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.slot-cabinet__sub {
+  margin: 1px 0 0;
+  color: var(--slot-head-soft);
+  font-size: 10.5px;
+  line-height: 1.2;
+}
+
+/* ---------- Rodillos ---------- */
+
+.slot-window {
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  padding: 7px;
+  border: 1px solid var(--slot-gold-line);
+  border-radius: 17px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.14));
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.36);
+}
+
+.slot-reels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.slot-reel {
+  position: relative;
+  height: calc(var(--reel-cell) * 3);
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--slot-paper), var(--slot-paper-2));
+  box-shadow: inset 0 1px 4px rgba(10, 18, 12, 0.18);
+  transition: box-shadow 0.18s ease;
+}
+
+.slot-reel::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--reel-cell) - 1px);
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--slot-paper-line);
+  box-shadow: 0 var(--reel-cell) 0 var(--slot-paper-line);
+  pointer-events: none;
+}
+
+.slot-reel.is-stopped {
+  box-shadow:
+    inset 0 0 0 2px var(--slot-gold),
+    inset 0 1px 4px rgba(10, 18, 12, 0.18);
+}
+
+.slot-reel__strip {
+  will-change: transform;
+}
+
+.slot-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: var(--reel-cell);
+  color: var(--sym, var(--slot-ink));
+  font-size: calc(var(--reel-cell) * 0.6);
+  line-height: 1;
+}
+
+.slot-cell__glyph {
+  display: block;
+  line-height: 1;
+  transform: translateY(-0.02em);
+}
+
+.slot-cell.is-win {
+  border-radius: 8px;
+  background: var(--slot-win-soft);
+  box-shadow: inset 0 0 0 2px var(--slot-gold);
+  animation: slot-win-pop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.slot-sym--trebol { --sym: var(--slot-sym-trebol); }
+.slot-sym--corazon { --sym: var(--slot-sym-corazon); }
+.slot-sym--pica { --sym: var(--slot-sym-pica); }
+.slot-sym--diamante { --sym: var(--slot-sym-diamante); }
+.slot-sym--estrella { --sym: var(--slot-sym-estrella); }
+.slot-sym--siete { --sym: var(--slot-sym-siete); }
+
+.slot-sym--siete .slot-cell__glyph,
+.slot-pay__sym.slot-sym--siete {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+/* ---------- Resultado ---------- */
+
+.slot-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 42px;
+  padding: 0 4px;
+  text-align: center;
+}
+
+.slot-readout__title {
+  color: var(--slot-head);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot-readout__detail {
+  color: var(--slot-head-soft);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.slot-readout[data-tone="win"] .slot-readout__title {
+  color: var(--slot-gold);
+  text-shadow: 0 0 20px var(--slot-gold-soft);
+  animation: slot-win-title 0.5s ease both;
+}
+
+.slot-readout[data-tone="spin"] .slot-readout__title {
+  color: var(--slot-head-soft);
+}
+
+.slot-lines-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 10px;
+  min-height: 12px;
+  padding: 0 2px;
+  color: var(--slot-head-soft);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* ---------- Apuesta ---------- */
+
+.slot-bet .bet__tools {
+  align-items: center;
+}
+
+#betOtherBtn.is-active {
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.slot-bet__chips {
+  justify-content: center;
+  gap: clamp(7px, 2.6vw, 14px);
+}
+
+.slot-bet__chips .chip {
+  --chip-size: clamp(40px, 12.5vw, 50px);
+}
+
+.slot-bet__chips .chip.is-active {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Hoja de otro monto ---------- */
+
+.custom-bet {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.custom-bet__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 1px 2px rgba(20, 30, 24, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-bet__field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.custom-bet__sign {
+  color: var(--ink-faint);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.custom-bet__field input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.custom-bet__hint {
+  margin-top: -10px;
+}
+
+.bet-sheet__chips {
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: -8px;
+}
+
+.bet-sheet__chips .chip {
+  --chip-size: clamp(42px, 12.5vw, 52px);
+}
+
+/* ---------- Tabla de pagos (Ajustes) ---------- */
+
+.slot-paytable {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.slot-pay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.slot-pay__sym {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--sym, var(--ink));
+  font-size: 15px;
+  line-height: 1;
+}
+
+.slot-pay__name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot-pay__mult {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Animaciones ---------- */
+
+@keyframes slot-win-pop {
+  from {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slot-win-title {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Avisos ---------- */
+
+/* El controlador mide el panel de apuesta y deja el aviso justo arriba. */
+.toast {
+  bottom: calc(var(--slot-toast-bottom, 24px) + env(safe-area-inset-bottom));
+}
+
+/* ---------- Alturas chicas ---------- */
+
+@media (max-height: 720px) {
+  .slot-cabinet {
+    --reel-cell: clamp(46px, 14vw, 56px);
+    gap: 8px;
+    padding: 10px 11px 11px;
+    border-radius: 22px;
+  }
+
+  .slot-cabinet__head {
+    min-height: 26px;
+  }
+
+  .slot-cabinet__mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .slot-cabinet__name {
+    font-size: 11px;
+  }
+
+  .slot-cabinet__sub {
+    font-size: 9.5px;
+  }
+
+  .slot-window {
+    padding: 5px;
+    border-radius: 14px;
+  }
+
+  .slot-reels {
+    gap: 5px;
+  }
+
+  .slot-reel {
+    border-radius: 8px;
+  }
+
+  .slot-readout {
+    min-height: 36px;
+  }
+
+  .slot-readout__title {
+    font-size: 15.5px;
+  }
+
+  .slot-readout__detail {
+    font-size: 10px;
+  }
+
+  .slot-lines-legend {
+    display: none;
+  }
+}
+
+@media (max-height: 620px) {
+  .slot-cabinet {
+    --reel-cell: 44px;
+    gap: 6px;
+    padding: 8px 10px 9px;
+  }
+
+  .slot-cabinet__sub {
+    display: none;
+  }
+
+  .slot-readout {
+    min-height: 30px;
+  }
+
+  .slot-readout__title {
+    font-size: 14.5px;
+  }
+
+  .slot-readout__detail {
+    font-size: 9.5px;
+  }
+
+  .slot-bet__chips {
+    min-height: calc(38px + 8px);
+  }
+
+  .slot-bet__chips .chip {
+    --chip-size: 38px;
+  }
+}
+
+@media (max-width: 340px) {
+  .slot-cabinet {
+    --reel-cell: 50px;
+    padding: 10px 10px 11px;
+  }
+
+  .slot-cabinet__sub {
+    font-size: 9.5px;
+  }
+
+  .slot-readout__title {
+    font-size: 15.5px;
+  }
+
+  .slot-readout__detail {
+    font-size: 10px;
+  }
+
+  .slot-paytable {
+    grid-template-columns: 1fr;
+  }
+}
