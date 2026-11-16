@@ -5,6 +5,34 @@ Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/games/blackjack/controller.js`, `js/games/poker/controller.js` y
 `js/games/slots/controller.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v3.1] — 2026-11-15
+
+### Agregado
+- **Caída por columna en las dos máquinas:** la grilla baja de a una y el escalón
+  entre columnas sigue la **velocidad** elegida (Lenta 1,35×, Normal 1×, Rápida
+  0,6×), igual que la duración de la caída. El sonido del giro suena al empezar.
+- **Doble toque durante el giro para saltear:** antes solo aceleraba; ahora corta
+  las esperas, apaga las animaciones (`.slot-grid.is-turbo`) y aterriza el
+  resultado completo en el acto. El giro siguiente vuelve a animar.
+- Botón **Elegir otro juego** (grilla de 2×2) en la cabecera de los cuatro
+  juegos. En blackjack abre el selector interno; en póker y en las máquinas
+  vuelve al selector.
+
+### Cambiado
+- Se quita la sección **Juego** de las cuatro hojas de Ajustes (`#switchGameBtn`,
+  `#changeGameBtn`, `#gameStatus`, `#gameFoot`). El cambio de juego vive ahora en
+  la cabecera, arriba a la derecha.
+- Cabecera en pantallas de hasta 380 px: se oculta la marca decorativa del juego
+  y los iconos bajan a 40 px para que entren los cinco con **Instalar**.
+- `T` suma `T.column` (escalón entre columnas) y el controlador pasa
+  `--slot-drop` / `--slot-fall` a CSS según la velocidad y el salteo.
+
+### Tests
+- Probe nuevo `probe-v31-changes.cjs`: escalonado por columna a las tres
+  velocidades, salteo con doble toque (y que el giro siguiente anime), botón de
+  la cabecera en los cuatro juegos y cabecera en 320×568.
+- `npm test` sigue en **111/111** (el motor no se tocó).
+
 ## [v3.0] — 2026-11-15
 
 ### Agregado

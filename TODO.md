@@ -25,11 +25,15 @@ Marcar con `[x]` al terminar y borrar lo descartado.
       de split y de la mesa de póker en **tema oscuro** (las capturas actuales
       son en claro).
 - [ ] Repasar el resultado por mano en split con 3 y 4 manos en 320×568.
+- [ ] Ajustar la mesa de póker en **320×568**: el alto natural supera la pantalla
+      por ~43 px (ya pasaba en v3.0), así que los controles quedan cortados y la
+      pantalla de juego no scrollea. Achicar asientos, centro o el bloque propio
+      en pantallas bajas sin tocar 390×844.
 - [ ] Probar una mano de póker completa en un teléfono real: turnos de los bots,
       subida, all-in y reanudación al recargar.
-- [ ] Sentir las dos máquinas en un teléfono real: que la cascada no se sienta
-      lenta, que el doble toque para acelerar sea cómodo, que el auto x50 no se
-      trabe y que la apuesta escrita con el teclado numérico no tape la hoja.
+- [ ] Sentir las dos máquinas en un teléfono real: que la caída por columna no se
+      sienta lenta, que el doble toque para saltear sea cómodo, que el auto x50 no
+      se trabe y que la apuesta escrita con el teclado numérico no tape la hoja.
 - [ ] Probar un bono completo de Táctica y otro de Pulso en un teléfono real:
       que se retome al cerrar y abrir la app, que el saldo no se cobre dos veces
       y que el resultado final se lea bien.

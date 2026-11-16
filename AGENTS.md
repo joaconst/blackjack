@@ -12,7 +12,7 @@ ES modules. PWA instalable y offline.
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v3.0` (`APP_VERSION` en
+- Versión actual: `v3.1` (`APP_VERSION` en
   `js/games/blackjack/controller.js`, `js/games/poker/controller.js` y
   `js/games/slots/controller.js`, `CACHE` en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
@@ -43,7 +43,9 @@ niveles, faroles y charla de los bots, `probe-v26-smoke.cjs` hoja Mesa, ciegas,
 entrada sin tope y 320×568, `probe-v29-mesa.cjs` pistas de ciegas y entrada,
 `probe-v210-blinds.cjs` escalera adaptable y ciega personalizada,
 `probe-v3-slots.cjs` Táctica y Pulso de punta a punta (selector, giro, ajustes,
-apuesta libre, doble toque, bono, badge y capturas), `probe-v3-smoke.cjs`
+apuesta libre, doble toque, bono, badge y capturas), `probe-v31-changes.cjs`
+caída por columna a las tres velocidades, salteo con doble toque y botón de la
+cabecera en los cuatro juegos, `probe-v3-smoke.cjs`
 navegación entre los cuatro juegos y redirección de `slots.html`,
 `shot-v3-dark.cjs` capturas del tema oscuro, `measure-head.cjs` medidas de la
 cabecera, `shot-win.cjs` / `shot-themes.cjs` capturas, `visual.cjs` capturas,
@@ -143,6 +145,14 @@ tests/slots.test.js   36 tests de las tragamonedas 6×5
   tragamonedas **no llama a `savePrefs()` en `pagehide`** (solo guarda el saldo y,
   si la partida lo tocó, el bono): si lo hiciera, reescribiría `game` al salir y
   el selector rebotaría a la máquina.
+- **Botón Juegos (`#gamesBtn`):** va en la cabecera de los cuatro juegos, primero
+  en `.topbar__actions` (icono de grilla 2×2, `aria-label="Elegir otro juego"`).
+  En blackjack abre el selector interno con `openPicker(false)`; en póker y en las
+  máquinas llama a `switchGame()`, que ya bloquea el cambio en pleno giro o mano.
+  La sección **Juego** de las hojas de Ajustes se eliminó: no volver a agregar
+  `#switchGameBtn`, `#changeGameBtn`, `#gameStatus` ni `#gameFoot`.
+  En pantallas de hasta 380 px `css/styles.css` oculta `.brand__mark` y baja los
+  iconos a 40 px: con **Instalar** visible son cinco y con 44 px no entran en 320.
 - Clases de resultado: las cajas por mano (`.hand.is-win/.is-lose/.is-push`)
   aplican **solo** dentro de `.player-hands.is-multi` (split). En mano única el
   resultado se marca con el badge del puntaje (`.score.is-win/.is-lose`) y el
@@ -206,16 +216,26 @@ tests/slots.test.js   36 tests de las tragamonedas 6×5
   `BET_TIERS` ($5, $10, $25, $100 y $500) y aparecen según el saldo. `SPEEDS`
   tiene tres niveles (Lenta 1,35×, Normal 1×, Rápida 0,6×) y los tiempos base
   están en `T`. El auto es x10/x50/x100 (`state.auto`).
+- **Caída por columna:** `animateSpin()` llama a `renderGrid(..., { cols: [n] })`
+  una vez por columna y espera `T.column` (70 ms) entre una y otra, así la grilla
+  baja de a una. La espera se escala con `SPEEDS[state.speed].factor`, igual que
+  la animación CSS: `applyAnimationSpeed()` escribe `--slot-drop` (`DROP_MS`) y
+  `--slot-fall` (`FALL_MS`) en `#grid`, y `.slot-cell.is-drop` / `.is-falling`
+  los consumen. `renderGrid` solo anima las celdas que cambiaron y limpia la
+  clase a los `duración + 140 ms`.
 - **Tema y estilos:** `body[data-slot-game="tactica|pulso"]` elige la paleta de
   `css/slots-themes.css` y el color de cada símbolo (`--sym-*`); `css/slots.css`
   solo tiene la estructura. Para reestilar una máquina alcanza con tocar su
   bloque; para cambiar un ícono, su `*.art.js`.
 - **Gestos:** los umbrales vienen de `js/core/gestures.js` (borde 28 px,
   `TAP_MAX_MS` 500, `isDoubleTap`). Doble toque quieto **gira**; doble toque
-  girando activa `state.turbo`, que multiplica los tiempos restantes por **0,38**
-  (mínimo 60 ms) sin saltear el resultado; se apaga al terminar el giro. La
-  preferencia `gestures` es la misma de los otros dos juegos y el aviso de ayuda
-  usa `seenSlotHint`, separado de `seenGestureHint`.
+  girando **saltea**: `skipAnimation()` prende `state.turbo`, resuelve todas las
+  esperas de `pendingWaits`, apaga las animaciones con `.slot-grid.is-turbo` y
+  deja la grilla aterrizada en el acto, sin cambiar el resultado. `endTurbo()` se
+  llama al empezar y al terminar **cada** `animateSpin()` (un bono no puede quedar
+  acelerado para siempre) y `wait()` devuelve 16 ms como piso. La preferencia
+  `gestures` es la misma de los otros dos juegos y el aviso de ayuda usa
+  `seenSlotHint`, separado de `seenGestureHint`.
 - **Aviso y badges:** el aviso (`.toast`) se apoya sobre la barra de título de la
   máquina (`TOAST_LIFT = 32` medido desde el borde superior del gabinete), no
   sobre la grilla, el resultado ni **Girar**. El badge de multiplicador vive en
@@ -363,7 +383,15 @@ la página, sin recargar después.
    versión del blackjack) y `shot-v3-dark.cjs` (capturas del tema oscuro).
    Revisar las capturas: el aviso no debe tapar la barra de título, el resultado
    ni **Girar**, las celdas ganadoras quedan marcadas en dorado y las dos
-   máquinas conservan su paleta.
+   máquinas conservan su paleta. Sumar `probe-v31-changes.cjs` (v3.1): la grilla
+   cae **columna por columna** y el escalonado se nota a las tres velocidades
+   (Normal ~380 ms de la primera a la última, Lenta ~500 y Rápida ~230), el doble
+   toque durante el giro **saltea** en ~110 ms y el giro siguiente vuelve a
+   animar, el botón **Juegos** abre el selector en blackjack y lleva al selector
+   en póker y en las máquinas, las hojas ya no tienen la sección Juego y la
+   cabecera entra en 320×568 en las cuatro páginas. Ojo: la mesa de póker
+   desborda ~43 px en 320×568 desde v3.0 (anotado en `TODO.md`); `probe-v31`
+   comprueba que el botón nuevo no agrega alto, no que la mesa entre.
 6. Si se tocó interacción, probar gestos con touch real simulado (CDP
    `Input.dispatchTouchEvent`), no solo con clicks.
 7. Commit + push y confirmar que `HEAD` y `origin/main` coinciden.

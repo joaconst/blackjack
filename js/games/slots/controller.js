@@ -42,7 +42,7 @@ import {
 import { GESTURE_EDGE, TAP_MAX_MS, isDoubleTap } from '../../core/gestures.js';
 import { sound, unlockSoundOnGesture } from '../../sound.js';
 
-const APP_VERSION = 'v3.0';
+const APP_VERSION = 'v3.1';
 
 const SLOT_MIN_BET = 5;
 const SLOT_DEFAULT_BET = 10;
@@ -54,7 +54,11 @@ const SPEEDS = [
   { label: 'Rápida', factor: 0.6 },
 ];
 
-const T = { drop: 300, win: 430, fall: 250, between: 260, bonus: 520 };
+// T.column es el escalón entre columnas: la grilla cae de a una.
+const T = { column: 70, drop: 300, win: 430, fall: 250, between: 260, bonus: 520 };
+// Duración de la animación CSS, a velocidad normal. Se escala con la velocidad.
+const DROP_MS = 340;
+const FALL_MS = 300;
 
 const GAME_ID = document.body.dataset.slotGame === 'pulso' ? 'pulso' : 'tactica';
 const GAME = GAME_ID === 'pulso' ? PULSO_GAME : TACTICA_GAME;
@@ -85,7 +89,7 @@ const els = {
   gameName: document.getElementById('gameName'),
   gameSub: document.getElementById('gameSub'),
   brandName: document.getElementById('brandName'),
-  gameFoot: document.getElementById('gameFoot'),
+  gamesBtn: document.getElementById('gamesBtn'),
   betPanel: document.getElementById('betPanel'),
   betAmountBtn: document.getElementById('betAmountBtn'),
   betChips: document.getElementById('betChips'),
@@ -106,7 +110,6 @@ const els = {
   toast: document.getElementById('toast'),
   sheet: document.getElementById('sheet'),
   sheetClose: document.getElementById('sheetClose'),
-  switchGameBtn: document.getElementById('switchGameBtn'),
   sheetInstallBtn: document.getElementById('sheetInstallBtn'),
   installStatus: document.getElementById('installStatus'),
   installSteps: document.getElementById('installSteps'),
@@ -295,12 +298,15 @@ function markWins(wins) {
   }
 }
 
-/** Pinta una grilla completa y anima solo las celdas que cambiaron. */
-function renderGrid(grid, { drop = false, fall = false } = {}) {
+/** Pinta una grilla completa (o solo algunas columnas) y anima lo que cambió. */
+function renderGrid(grid, { drop = false, fall = false, cols = null } = {}) {
   const previous = state.grid;
   const changed = [];
+  const columns = cols || Array.from({ length: GAME.reels }, (_, index) => index);
 
-  for (let col = 0; col < GAME.reels; col += 1) {
+  if (!state.grid) state.grid = grid.map((column) => column.slice());
+
+  for (const col of columns) {
     for (let row = 0; row < GAME.rows; row += 1) {
       const id = grid[col][row];
       const cell = state.cells[col][row];
@@ -308,27 +314,23 @@ function renderGrid(grid, { drop = false, fall = false } = {}) {
       setCell(cell, id);
       changed.push(cell);
     }
+    state.grid[col] = grid[col].slice();
   }
 
-  state.grid = grid.map((column) => column.slice());
+  // Al saltear el giro, todo aterriza ya: el resultado no cambia, solo el viaje.
+  if (state.turbo || (!drop && !fall) || !changed.length) return;
 
-  if (drop) {
-    els.grid.classList.remove('is-dropping');
-    void els.grid.offsetWidth;
-    els.grid.classList.add('is-dropping');
-    setTimeout(() => els.grid.classList.remove('is-dropping'), 460);
-  }
+  const duration = (drop ? DROP_MS : FALL_MS) * animationScale();
+  const className = drop ? 'is-drop' : 'is-falling';
 
-  if (fall) {
-    for (const cell of changed) {
-      cell.classList.remove('is-falling');
-      void cell.offsetWidth;
-      cell.classList.add('is-falling');
-    }
-    setTimeout(() => {
-      for (const cell of changed) cell.classList.remove('is-falling');
-    }, 380);
+  for (const cell of changed) {
+    cell.classList.remove(className);
+    void cell.offsetWidth;
+    cell.classList.add(className);
   }
+  setTimeout(() => {
+    for (const cell of changed) cell.classList.remove(className);
+  }, duration + 140);
 }
 
 function visibleOrbs(spin) {
@@ -491,25 +493,80 @@ function maybeTopUp() {
 
 /* ---------- Tiempos ---------- */
 
+/** Esperas vivas: al saltear el giro se cancelan y resuelven todas juntas. */
+const pendingWaits = new Set();
+
+function speedFactor() {
+  return SPEEDS[state.speed].factor;
+}
+
+function animationScale() {
+  return state.turbo ? 0 : speedFactor();
+}
+
 function wait(ms) {
-  const factor = SPEEDS[state.speed].factor * (state.turbo ? 0.38 : 1);
+  if (state.turbo) return Promise.resolve();
+  const delay = Math.max(16, Math.round(ms * speedFactor()));
   return new Promise((resolve) => {
-    setTimeout(resolve, Math.max(60, Math.round(ms * factor)));
+    const entry = { resolve, id: 0 };
+    entry.id = setTimeout(() => {
+      pendingWaits.delete(entry);
+      resolve();
+    }, delay);
+    pendingWaits.add(entry);
   });
+}
+
+/** Pasa la velocidad a CSS: la caída en sí también respeta la config. */
+function applyAnimationSpeed() {
+  const scale = animationScale();
+  els.grid.style.setProperty('--slot-drop', `${Math.round(DROP_MS * scale)}ms`);
+  els.grid.style.setProperty('--slot-fall', `${Math.round(FALL_MS * scale)}ms`);
+}
+
+/** Doble toque durante el giro: se saltea la animación, no el resultado. */
+function skipAnimation() {
+  if (state.turbo || !state.spinning) return;
+  state.turbo = true;
+  for (const entry of pendingWaits) {
+    clearTimeout(entry.id);
+    entry.resolve();
+  }
+  pendingWaits.clear();
+  els.grid.classList.add('is-turbo');
+  applyAnimationSpeed();
+  for (const column of state.cells) {
+    for (const cell of column) cell.classList.remove('is-drop', 'is-falling');
+  }
+}
+
+function endTurbo() {
+  state.turbo = false;
+  els.grid.classList.remove('is-turbo');
+  applyAnimationSpeed();
 }
 
 /* ---------- Animación ---------- */
 
 async function animateSpin(spin) {
-  renderGrid(spin.initialGrid, { drop: true });
+  endTurbo();
+
+  // La grilla cae columna por columna; el escalón y la caída siguen la velocidad.
+  if (state.sound) sound.play('spin');
+  for (let col = 0; col < GAME.reels; col += 1) {
+    renderGrid(spin.initialGrid, { drop: true, cols: [col] });
+    await wait(T.column);
+  }
+
   refreshMultiplierBadge(spin);
   updateGridLabel();
-  if (state.sound) sound.play('spin');
   await wait(T.drop);
 
   for (const step of spin.steps) {
     markWins(step.wins);
-    if (state.sound) sound.play(step.index === 0 ? 'win' : 'cascade', { level: step.index });
+    if (state.sound && !state.turbo) {
+      sound.play(step.index === 0 ? 'win' : 'cascade', { level: step.index });
+    }
     const count = step.wins.reduce((total, win) => total + win.count, 0);
     setResult(`Cascada ${step.index + 1}`, `${count} fichas · +${money(step.pay)}`, 'win');
     await wait(T.win);
@@ -522,6 +579,7 @@ async function animateSpin(spin) {
   }
 
   refreshMultiplierBadge(spin);
+  endTurbo();
 }
 
 function winDetail(spin) {
@@ -538,7 +596,7 @@ function winDetail(spin) {
 }
 
 function finishSpin(spin) {
-  state.turbo = false;
+  endTurbo();
   state.displayBalance = state.balance;
   renderBonus();
 
@@ -977,7 +1035,7 @@ function onCabinetPointerUp(event) {
   if (gesture.doubleTap) {
     lastTap = { t: 0, x: 0, y: 0 };
     if (state.spinning) {
-      state.turbo = true;
+      skipAnimation();
       if (state.sound) sound.play('tick');
     } else {
       spin();
@@ -1094,7 +1152,6 @@ function buildCopy() {
   els.gameName.textContent = GAME.label;
   els.gameSub.textContent = COPY.subtitle;
   els.brandName.textContent = GAME.label;
-  if (els.gameFoot) els.gameFoot.textContent = GAME.label;
   els.rulesList.replaceChildren(
     ...COPY.rules.map((text) => {
       const li = document.createElement('li');
@@ -1133,7 +1190,7 @@ els.sheet.addEventListener('click', (event) => {
   if (event.target.closest('[data-close]')) closeSheet();
 });
 els.noFundsRulesBtn.addEventListener('click', () => openSheet());
-els.switchGameBtn.addEventListener('click', switchGame);
+els.gamesBtn.addEventListener('click', switchGame);
 
 els.betChips.addEventListener('click', (event) => {
   const chip = event.target.closest('.chip');
@@ -1150,6 +1207,7 @@ els.spinBtn.addEventListener('click', () => spin());
 els.speedBtn.addEventListener('click', () => {
   state.speed = (state.speed + 1) % SPEEDS.length;
   savePrefs();
+  applyAnimationSpeed();
   renderBet();
   if (state.sound) sound.play('tick');
   toast(`Velocidad ${SPEEDS[state.speed].label}`);
@@ -1261,7 +1319,7 @@ function scheduleGestureHint() {
   setTimeout(() => {
     if (!state.gestures || state.seenSlotHint) return;
     if (!els.sheet.hidden || !els.addSheet.hidden || !els.betSheet.hidden) return;
-    toast('Doble toque: otra tirada · acelera el giro');
+    toast('Doble toque: otra tirada · saltea la caída');
     state.seenSlotHint = true;
     savePrefs();
   }, 1600);
@@ -1275,6 +1333,7 @@ applyGestures();
 buildCopy();
 buildGrid();
 renderGrid(idleGrid());
+applyAnimationSpeed();
 buildPayTable();
 buildAddFundsChips();
 unlockSoundOnGesture();

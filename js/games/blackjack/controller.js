@@ -55,7 +55,7 @@ import {
 } from '../../core/gestures.js';
 import { sound, unlockSoundOnGesture } from '../../sound.js';
 
-const APP_VERSION = 'v3.0';
+const APP_VERSION = 'v3.1';
 const money = formatMoney;
 let resetting = false;
 
@@ -117,8 +117,7 @@ const els = {
   addConfirm: document.getElementById('addConfirm'),
   gamePicker: document.getElementById('gamePicker'),
   pickerCancel: document.getElementById('pickerCancel'),
-  changeGameBtn: document.getElementById('changeGameBtn'),
-  gameStatus: document.getElementById('gameStatus'),
+  gamesBtn: document.getElementById('gamesBtn'),
 };
 
 /* ---------- Estado y persistencia ---------- */
@@ -1427,7 +1426,6 @@ function chooseGame(game) {
   state.game = 'blackjack';
   savePrefs();
   closePicker(true);
-  if (els.gameStatus) els.gameStatus.textContent = 'Estás jugando al blackjack.';
   toast('Jugando al blackjack');
 }
 
@@ -1469,7 +1467,7 @@ els.resetGo.addEventListener('click', () => {
 els.menuBtn.addEventListener('click', () => openSheet());
 els.sheetClose.addEventListener('click', closeSheet);
 els.noFundsRulesBtn.addEventListener('click', () => openSheet());
-els.changeGameBtn.addEventListener('click', () => openPicker(false));
+els.gamesBtn.addEventListener('click', () => openPicker(false));
 els.pickerCancel.addEventListener('click', () => closePicker());
 
 els.gamePicker.addEventListener('click', (event) => {
@@ -1526,7 +1524,6 @@ buildAddChips(els.addChips);
 unlockSoundOnGesture();
 applyInitialState();
 
-if (els.gameStatus) els.gameStatus.textContent = 'Estás jugando al blackjack.';
 if (!state.game) openPicker(true);
 
 function applyInitialState() {

@@ -6,9 +6,9 @@ CSS y JS puro. Se puede instalar como app en el celular (PWA) y funciona offline
 ## Elegir juego
 
 La primera vez la app pregunta si querés jugar al **Blackjack**, al **Póker**, a
-**Táctica** o a **Pulso**. La elección queda guardada y se puede cambiar en
-**Ajustes → Juego** (o desde la hoja de ajustes del póker y de las máquinas). Los
-cuatro juegos comparten el mismo saldo y el mismo bono diario.
+**Táctica** o a **Pulso**. La elección queda guardada y se puede cambiar desde el
+botón de grilla de la cabecera, arriba a la derecha, en los cuatro juegos. Los
+cuatro comparten el mismo saldo y el mismo bono diario.
 
 ## Blackjack
 
@@ -204,7 +204,8 @@ dónde estén; no hay líneas.
 - Apuesta mínima **$5**, sin máximo más que tu saldo, y **cualquier entero** desde
   ahí. Las fichas rápidas son $5, $10, $25, $100 y $500; **Otro monto** abre una
   hoja para escribir el monto que quieras y **queda guardado** por máquina.
-- **Velocidad** en tres niveles: Lenta, Normal y Rápida.
+- **Velocidad** en tres niveles: Lenta, Normal y Rápida. La grilla cae **columna
+  por columna** y el escalón sigue la velocidad elegida.
 - **Auto x10, x50 y x100:** repite la tirada esa cantidad de veces con la misma
   apuesta, con un botón para parar.
 - El resultado se define antes de que caigan las celdas. El saldo se aplica al
@@ -213,8 +214,9 @@ dónde estén; no hay líneas.
 - Las celdas ganadoras se marcan en dorado y el marcador dice cuánto pagó la
   tirada y qué multiplicador se aplicó.
 - **Doble toque con la máquina quieta:** gira. **Doble toque durante el giro:**
-  acelera la cascada sin saltear el resultado. Los gestos se apagan en
-  **Ajustes → Gestos** y la preferencia es la misma de los otros juegos.
+  **saltea** la caída y muestra el resultado en el acto (no lo cambia). Los gestos
+  se apagan en **Ajustes → Gestos** y la preferencia es la misma de los otros
+  juegos.
 
 ### Saldo diario
 

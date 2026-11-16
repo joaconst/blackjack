@@ -67,7 +67,7 @@ import {
 } from '../../core/gestures.js';
 import { sound, unlockSoundOnGesture } from '../../sound.js';
 
-const APP_VERSION = 'v3.0';
+const APP_VERSION = 'v3.1';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 // Ana juega tight, Beto balanced y Caro aggro.
@@ -143,7 +143,7 @@ const els = {
   toast: document.getElementById('toast'),
   sheet: document.getElementById('sheet'),
   sheetClose: document.getElementById('sheetClose'),
-  switchGameBtn: document.getElementById('switchGameBtn'),
+  gamesBtn: document.getElementById('gamesBtn'),
   sheetInstallBtn: document.getElementById('sheetInstallBtn'),
   installStatus: document.getElementById('installStatus'),
   installSteps: document.getElementById('installSteps'),
@@ -1734,7 +1734,7 @@ els.tableClear.addEventListener('click', () => {
 });
 els.tableConfirm.addEventListener('click', confirmTable);
 els.noFundsRulesBtn.addEventListener('click', () => openSheet());
-els.switchGameBtn.addEventListener('click', switchGame);
+els.gamesBtn.addEventListener('click', switchGame);
 
 els.resetBtn.addEventListener('click', () => showResetConfirm(true));
 els.resetCancel.addEventListener('click', () => {

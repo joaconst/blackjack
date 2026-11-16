@@ -206,16 +206,27 @@
   animation: slot-win-pop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-/* Caída inicial: cada celda entra desde arriba, escalonada por columna. */
-.slot-grid.is-dropping .slot-cell {
-  animation: slot-drop 340ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-  animation-delay: calc(var(--row, 0) * 22ms + var(--col, 0) * 16ms);
+/* Caída inicial: las columnas bajan de a una (el controlador las pinta en orden). */
+.slot-cell.is-drop {
+  animation: slot-drop var(--slot-drop, 340ms) cubic-bezier(0.2, 0.8, 0.3, 1) both;
 }
 
 /* Cascada: lo que cambió vuelve a caer. */
 .slot-cell.is-falling {
-  animation: slot-fall 300ms cubic-bezier(0.2, 0.85, 0.3, 1) both;
+  animation: slot-fall var(--slot-fall, 300ms) cubic-bezier(0.2, 0.85, 0.3, 1) both;
   animation-delay: calc(var(--row, 0) * 16ms);
+}
+
+/* Doble toque durante el giro: todo aterriza ya, sin animación. */
+.slot-grid.is-turbo .slot-cell {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot-cell.is-drop,
+  .slot-cell.is-falling {
+    animation: none;
+  }
 }
 
 /* Badge de medallas / cargas, en la barra de título para no tapar la grilla. */
@@ -492,11 +503,15 @@
 /* ---------- Animaciones ---------- */
 
 @keyframes slot-drop {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(-120%);
+    transform: translateY(-135%);
   }
-  to {
+  62% {
+    opacity: 1;
+    transform: translateY(3%);
+  }
+  100% {
     opacity: 1;
     transform: none;
   }
