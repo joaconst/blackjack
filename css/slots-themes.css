@@ -1,0 +1,140 @@
+/* =========================================================
+   Temas de las dos máquinas
+   Cada juego define acá su paleta y el color de sus símbolos.
+   El HTML solo cambia data-slot-game en <body>. Para reestilar
+   una máquina alcanza con tocar su bloque.
+   ========================================================= */
+
+/* ---------- Táctica: verde oliva, arena y acero ---------- */
+
+body[data-slot-game="tactica"] {
+  --slot-accent: #c9a24b;
+  --slot-accent-soft: rgba(201, 162, 75, 0.22);
+  --slot-accent-line: rgba(201, 162, 75, 0.36);
+  --slot-head: #f4eedb;
+  --slot-head-soft: rgba(244, 238, 219, 0.6);
+  --slot-cabinet-a: #2a3623;
+  --slot-cabinet-b: #131a11;
+  --slot-cell-bg: #f7f2e2;
+  --slot-cell-bg-2: #e6dfc8;
+  --slot-cell-line: rgba(32, 42, 30, 0.16);
+  --slot-win-soft: rgba(201, 162, 75, 0.3);
+  --slot-ink: #2b2f26;
+
+  --sym-gemaVerde: #4f8f52;
+  --sym-gemaArena: #c2a15c;
+  --sym-gemaCeleste: #7fa9c4;
+  --sym-gemaRoja: #b4503f;
+  --sym-gemaGris: #8b938c;
+  --sym-cantimplora: #6f8a5c;
+  --sym-placa: #93a08c;
+  --sym-reloj: #b98f3f;
+  --sym-estrella: #d9a441;
+  --sym-objetivo: #cf5b2c;
+  --sym-medalla: #e0b452;
+}
+
+:root[data-theme="dark"] body[data-slot-game="tactica"] {
+  --slot-accent: #e2bd68;
+  --slot-accent-soft: rgba(226, 189, 104, 0.18);
+  --slot-accent-line: rgba(226, 189, 104, 0.3);
+  --slot-cabinet-a: #202b1c;
+  --slot-cabinet-b: #0d120b;
+  --slot-cell-bg: #2d332a;
+  --slot-cell-bg-2: #222723;
+  --slot-cell-line: rgba(240, 240, 228, 0.1);
+  --slot-win-soft: rgba(226, 189, 104, 0.24);
+  --slot-ink: #eef0e6;
+
+  --sym-gemaVerde: #79c47c;
+  --sym-gemaArena: #e0c07a;
+  --sym-gemaCeleste: #a3cbe4;
+  --sym-gemaRoja: #e07a66;
+  --sym-gemaGris: #b3bbb2;
+  --sym-cantimplora: #9cba83;
+  --sym-placa: #bcc7b4;
+  --sym-reloj: #e2b45c;
+  --sym-estrella: #f2cd6f;
+  --sym-objetivo: #f4855a;
+  --sym-medalla: #f5cd72;
+}
+
+/* ---------- Pulso: azul, cian y magenta ---------- */
+
+body[data-slot-game="pulso"] {
+  --slot-accent: #35b8c9;
+  --slot-accent-soft: rgba(53, 184, 201, 0.22);
+  --slot-accent-line: rgba(53, 184, 201, 0.36);
+  --slot-head: #eaf3ff;
+  --slot-head-soft: rgba(234, 243, 255, 0.6);
+  --slot-cabinet-a: #232f5a;
+  --slot-cabinet-b: #0e1333;
+  --slot-cell-bg: #f2f5ff;
+  --slot-cell-bg-2: #dfe5fa;
+  --slot-cell-line: rgba(26, 34, 70, 0.16);
+  --slot-win-soft: rgba(53, 184, 201, 0.28);
+  --slot-ink: #232a44;
+
+  --sym-pixelCian: #35b8c9;
+  --sym-pixelLima: #8ec94a;
+  --sym-pixelAmbar: #e6b23c;
+  --sym-pixelMagenta: #e0529a;
+  --sym-pixelVioleta: #8367d8;
+  --sym-escudo: #4a8de0;
+  --sym-orbe: #2fa89c;
+  --sym-espiral: #9a5fd0;
+  --sym-corazon: #f2607d;
+  --sym-portal: #2bb6cf;
+  --sym-carga: #e8a91f;
+}
+
+:root[data-theme="dark"] body[data-slot-game="pulso"] {
+  --slot-accent: #5fd8e8;
+  --slot-accent-soft: rgba(95, 216, 232, 0.18);
+  --slot-accent-line: rgba(95, 216, 232, 0.3);
+  --slot-cabinet-a: #1b2448;
+  --slot-cabinet-b: #0a0e26;
+  --slot-cell-bg: #2a3152;
+  --slot-cell-bg-2: #1f2542;
+  --slot-cell-line: rgba(230, 240, 255, 0.1);
+  --slot-win-soft: rgba(95, 216, 232, 0.22);
+  --slot-ink: #e9efff;
+
+  --sym-pixelCian: #63dcea;
+  --sym-pixelLima: #b0e06a;
+  --sym-pixelAmbar: #f4c95c;
+  --sym-pixelMagenta: #f478b4;
+  --sym-pixelVioleta: #a48bf0;
+  --sym-escudo: #78aef5;
+  --sym-orbe: #4fd0c2;
+  --sym-espiral: #bb8bf0;
+  --sym-corazon: #ff8ba1;
+  --sym-portal: #6ce8ff;
+  --sym-carga: #ffcf5c;
+}
+
+/* ---------- Color de cada símbolo ---------- */
+
+.slot-sym--gemaVerde { --sym: var(--sym-gemaVerde); }
+.slot-sym--gemaArena { --sym: var(--sym-gemaArena); }
+.slot-sym--gemaCeleste { --sym: var(--sym-gemaCeleste); }
+.slot-sym--gemaRoja { --sym: var(--sym-gemaRoja); }
+.slot-sym--gemaGris { --sym: var(--sym-gemaGris); }
+.slot-sym--cantimplora { --sym: var(--sym-cantimplora); }
+.slot-sym--placa { --sym: var(--sym-placa); }
+.slot-sym--reloj { --sym: var(--sym-reloj); }
+.slot-sym--estrella { --sym: var(--sym-estrella); }
+.slot-sym--objetivo { --sym: var(--sym-objetivo); }
+.slot-sym--medalla { --sym: var(--sym-medalla); }
+
+.slot-sym--pixelCian { --sym: var(--sym-pixelCian); }
+.slot-sym--pixelLima { --sym: var(--sym-pixelLima); }
+.slot-sym--pixelAmbar { --sym: var(--sym-pixelAmbar); }
+.slot-sym--pixelMagenta { --sym: var(--sym-pixelMagenta); }
+.slot-sym--pixelVioleta { --sym: var(--sym-pixelVioleta); }
+.slot-sym--escudo { --sym: var(--sym-escudo); }
+.slot-sym--orbe { --sym: var(--sym-orbe); }
+.slot-sym--espiral { --sym: var(--sym-espiral); }
+.slot-sym--corazon { --sym: var(--sym-corazon); }
+.slot-sym--portal { --sym: var(--sym-portal); }
+.slot-sym--carga { --sym: var(--sym-carga); }

@@ -5,6 +5,60 @@ Las versiones visibles de la app son `vX.Y` y coinciden con `APP_VERSION` en
 `js/games/blackjack/controller.js`, `js/games/poker/controller.js` y
 `js/games/slots/controller.js`; el cache del service worker usa `blackjack-vX.Y`.
 
+## [v3.0] — 2026-11-15
+
+### Agregado
+- **Motor nuevo de tragamonedas 6×5** en `js/games/slots/core/`: grilla de 30
+  celdas, pagos por **8 o más símbolos iguales en cualquier posición** (sin
+  líneas), cascada con gravedad por columna y relleno desde arriba, y premios
+  acumulados de todas las cascadas del giro.
+- **Dos máquinas con el mismo motor y reglas propias:**
+  - **Táctica** (`tactica.html`): 15 giros gratis, medallas de 2× a 500×. En el
+    juego base se suman al cerrar las cascadas y multiplican la tirada si hubo
+    premio; en el bono el acumulado se mantiene entre tiradas, se reinicia al
+    empezar y solo se aplica cuando cae una medalla nueva y hubo premio.
+  - **Pulso** (`pulso.html`): 10 giros gratis, cargas de 2× a 100× que **solo
+    existen en el bono**, se suman y multiplican únicamente el premio de esa
+    tirada. Sin multiplicadores en el juego base.
+- **Tabla por símbolo con tres escalones** (8-9, 10-11 y 12 o más) y **scatter**
+  (objetivo / portal): 4, 5 o 6+ pagan 3×, 5× y 100× sin multiplicador. Los
+  especiales quedan clavados en su celda durante las cascadas. Dentro del bono,
+  3 o más scatters suman 5 giros y no vuelven a pagar.
+- **Bono automático y persistido** por máquina en `slots.bonus.v1.<juego>`: usa
+  la apuesta que lo disparó, corre solo, se retoma al recargar y el saldo se
+  aplica al instante. Guardas de 60 cascadas y 200 giros.
+- **Auto x10 / x50 / x100**, tres velocidades de giro (la base más lenta) y
+  fichas de apuesta que aparecen según el saldo. Apuesta mínima $5 y cualquier
+  entero desde ahí, con la hoja **Otro monto**.
+- Sonidos nuevos en `js/sound.js` para giro, cascada, premio grande y bono.
+- `css/slots-themes.css`: paleta clara y oscura de cada máquina y color por
+  símbolo. El tema se elige con `data-slot-game` en `<body>`; el arte vive en
+  `games/tactica.art.js` y `games/pulso.art.js`.
+- `tools/slot-rtp.mjs`: calibración del RTP por simulación.
+
+### Cambiado
+- **Se elimina la tragamonedas 3×3** (`slots.html`, `js/games/slots/engine.js`
+  y la tabla de 5 líneas). `slots.html` queda como redirección a Táctica o
+  Pulso según el juego guardado.
+- El selector de `index.html` pasa a **cuatro tarjetas**: blackjack, póker,
+  Táctica y Pulso. El texto de saldo compartido se actualiza en las tres hojas.
+- `game` acepta `'tactica'` y `'pulso'`; `'slots'` migra a `'tactica'` en
+  `normalizePrefs`. `js/core/storage.js` suma `SLOT_BONUS_PREFIX`.
+- El aviso flotante se apoya sobre la barra de título de la máquina, no sobre el
+  resultado ni el botón **Girar**, y el badge de multiplicador vive en la
+  cabecera (no flota sobre la grilla).
+- `pagehide` solo reescribe el bono si la partida lo tocó, para no borrar un bono
+  guardado antes de arrancar.
+- `sw.js` precachea las dos páginas, `css/slots-themes.css` y los módulos del
+  motor nuevo; usa `CACHE = 'blackjack-v3.0'`.
+
+### Tests
+- `tests/slots.test.js` reescrito: **36 tests** del motor nuevo (evaluación,
+  cascada, especiales fijos, scatter, multiplicadores, bono, determinismo y RTP
+  por simulación).
+- `npm test` pasa a **111/111**: 28 de blackjack + 47 de póker + 36 de
+  tragamonedas.
+
 ## [v2.12] — 2026-11-15
 
 ### Agregado

@@ -1,50 +1,25 @@
 ﻿/* =========================================================
-   Tragamonedas
-   El gabinete y los rodillos usan tokens propios para que el
-   tema oscuro no pierda contraste. El resto (botones, fichas,
-   hojas) viene de styles.css y cards.css.
+   Tragamonedas 6×5 (Táctica y Pulso)
+   Acá vive la estructura: gabinete, grilla, cascada, lectura y
+   apuesta. Los colores y los íconos de cada máquina están en
+   slots-themes.css; el controlador no escribe estilos.
    ========================================================= */
 
 :root {
-  --slot-gold: #d9a441;
-  --slot-gold-soft: rgba(217, 164, 65, 0.22);
-  --slot-gold-line: rgba(217, 164, 65, 0.34);
-  --slot-paper: #fbf7ea;
-  --slot-paper-2: #f4eeda;
-  --slot-paper-line: rgba(30, 40, 32, 0.1);
+  /* Fallback neutro: si falta un tema, igual se ve prolijo. */
+  --slot-accent: #d9a441;
+  --slot-accent-soft: rgba(217, 164, 65, 0.2);
+  --slot-accent-line: rgba(217, 164, 65, 0.34);
+  --slot-head: #f5efdf;
+  --slot-head-soft: rgba(245, 239, 223, 0.62);
+  --slot-cabinet-a: #24331f;
+  --slot-cabinet-b: #121a12;
+  --slot-cell-bg: rgba(255, 255, 255, 0.94);
+  --slot-cell-bg-2: rgba(240, 238, 226, 0.94);
+  --slot-cell-line: rgba(20, 30, 24, 0.14);
+  --slot-win-soft: rgba(217, 164, 65, 0.28);
   --slot-ink: #2b2f2a;
-  --slot-cabinet-a: #1a4a35;
-  --slot-cabinet-b: #0f2f22;
-  --slot-head: #f6efdf;
-  --slot-head-soft: rgba(246, 239, 223, 0.62);
-  --slot-win-soft: rgba(217, 164, 65, 0.26);
-  --slot-sym-trebol: #1c6647;
-  --slot-sym-corazon: #b23b31;
-  --slot-sym-pica: #272b28;
-  --slot-sym-diamante: #b23b31;
-  --slot-sym-estrella: #b07f14;
-  --slot-sym-siete: #9a6510;
-}
-
-:root[data-theme="dark"] {
-  --slot-gold: #e8c06d;
-  --slot-gold-soft: rgba(232, 192, 109, 0.18);
-  --slot-gold-line: rgba(232, 192, 109, 0.28);
-  --slot-paper: #1b211c;
-  --slot-paper-2: #161b16;
-  --slot-paper-line: rgba(238, 240, 233, 0.08);
-  --slot-ink: #eef0e9;
-  --slot-cabinet-a: #16211b;
-  --slot-cabinet-b: #0c120e;
-  --slot-head: #f6efdf;
-  --slot-head-soft: rgba(246, 239, 223, 0.55);
-  --slot-win-soft: rgba(232, 192, 109, 0.2);
-  --slot-sym-trebol: #6fd3a2;
-  --slot-sym-corazon: #ef8d83;
-  --slot-sym-pica: #e7eae3;
-  --slot-sym-diamante: #ef8d83;
-  --slot-sym-estrella: #e8c06d;
-  --slot-sym-siete: #e8c06d;
+  --slot-sym-fallback: #6b7a68;
 }
 
 /* ---------- Mesa ---------- */
@@ -62,20 +37,22 @@
 }
 
 .slot-cabinet {
-  --reel-cell: clamp(54px, 16.2vw, 66px);
+  /* El lado de la celda sale del ancho y del alto: 6 columnas y 5 filas
+     tienen que entrar juntas, también en 320×568. */
+  --cell: min(12vw, 5.4vh, 52px);
 
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 10px;
   width: 100%;
-  padding: 13px 13px 14px;
-  border: 1px solid var(--slot-gold-line);
+  padding: 12px 12px 13px;
+  border: 1px solid var(--slot-accent-line);
   border-radius: var(--radius-xl);
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.1), transparent 62%),
     linear-gradient(180deg, var(--slot-cabinet-a), var(--slot-cabinet-b));
   box-shadow:
-    0 24px 38px -30px rgba(8, 20, 12, 0.85),
+    0 24px 38px -30px rgba(8, 14, 12, 0.9),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: box-shadow 0.2s ease, outline-color 0.2s ease;
   outline: 2px solid transparent;
@@ -83,7 +60,7 @@
 }
 
 .slot-cabinet.is-gesturing {
-  outline-color: var(--slot-gold-soft);
+  outline-color: var(--slot-accent-soft);
 }
 
 .slot-cabinet__head {
@@ -101,10 +78,18 @@
   width: 30px;
   height: 30px;
   border-radius: 10px;
-  background: var(--slot-gold-soft);
-  color: var(--slot-gold);
-  font-size: 16px;
-  line-height: 1;
+  background: var(--slot-accent-soft);
+  color: var(--slot-accent);
+}
+
+.slot-cabinet__mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+.slot-cabinet__titles {
+  min-width: 0;
+  margin-right: auto;
 }
 
 .slot-cabinet__name {
@@ -119,97 +104,145 @@
 
 .slot-cabinet__sub {
   margin: 1px 0 0;
+  overflow: hidden;
   color: var(--slot-head-soft);
   font-size: 10.5px;
   line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ---------- Rodillos ---------- */
+/* Contador de giros gratis. */
+.slot-bonus {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 9px 4px;
+  border: 1px solid var(--slot-accent-line);
+  border-radius: 10px;
+  background: var(--slot-accent-soft);
+  color: var(--slot-accent);
+  font-variant-numeric: tabular-nums;
+  animation: slot-bonus-in 0.32s ease both;
+}
+
+.slot-bonus__count {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.slot-bonus__label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Grilla ---------- */
 
 .slot-window {
-  width: 100%;
-  max-width: 340px;
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 7px;
-  border: 1px solid var(--slot-gold-line);
-  border-radius: 17px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.14));
+  padding: 6px;
+  border: 1px solid var(--slot-accent-line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.16));
   box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.36);
 }
 
-.slot-reels {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.slot-reel {
+.slot-grid {
   position: relative;
-  height: calc(var(--reel-cell) * 3);
-  overflow: hidden;
-  border-radius: 10px;
-  background: linear-gradient(180deg, var(--slot-paper), var(--slot-paper-2));
-  box-shadow: inset 0 1px 4px rgba(10, 18, 12, 0.18);
-  transition: box-shadow 0.18s ease;
-}
-
-.slot-reel::after {
-  content: "";
-  position: absolute;
-  top: calc(var(--reel-cell) - 1px);
-  right: 0;
-  left: 0;
-  height: 1px;
-  background: var(--slot-paper-line);
-  box-shadow: 0 var(--reel-cell) 0 var(--slot-paper-line);
-  pointer-events: none;
-}
-
-.slot-reel.is-stopped {
-  box-shadow:
-    inset 0 0 0 2px var(--slot-gold),
-    inset 0 1px 4px rgba(10, 18, 12, 0.18);
-}
-
-.slot-reel__strip {
-  will-change: transform;
+  display: grid;
+  grid-template-columns: repeat(6, var(--cell));
+  grid-template-rows: repeat(5, var(--cell));
+  gap: 4px;
 }
 
 .slot-cell {
   position: relative;
   display: grid;
   place-items: center;
-  height: var(--reel-cell);
-  color: var(--sym, var(--slot-ink));
-  font-size: calc(var(--reel-cell) * 0.6);
-  line-height: 1;
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 18%;
+  background: linear-gradient(180deg, var(--slot-cell-bg), var(--slot-cell-bg-2));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.22);
+  color: var(--sym, var(--slot-sym-fallback));
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.slot-cell__glyph {
+.slot-cell[data-symbol=""] {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
+.slot-cell__art {
   display: block;
-  line-height: 1;
-  transform: translateY(-0.02em);
+  width: 68%;
+  height: 68%;
+  overflow: visible;
+}
+
+.slot-cell.is-special {
+  background:
+    radial-gradient(80% 80% at 50% 20%, rgba(255, 255, 255, 0.22), transparent 70%),
+    linear-gradient(180deg, var(--slot-cell-bg), var(--slot-cell-bg-2));
+  box-shadow:
+    inset 0 0 0 1.5px var(--slot-accent-line),
+    0 1px 3px rgba(0, 0, 0, 0.26);
 }
 
 .slot-cell.is-win {
-  border-radius: 8px;
   background: var(--slot-win-soft);
-  box-shadow: inset 0 0 0 2px var(--slot-gold);
+  box-shadow:
+    inset 0 0 0 2px var(--slot-accent),
+    0 0 12px var(--slot-accent-soft);
   animation: slot-win-pop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-.slot-sym--trebol { --sym: var(--slot-sym-trebol); }
-.slot-sym--corazon { --sym: var(--slot-sym-corazon); }
-.slot-sym--pica { --sym: var(--slot-sym-pica); }
-.slot-sym--diamante { --sym: var(--slot-sym-diamante); }
-.slot-sym--estrella { --sym: var(--slot-sym-estrella); }
-.slot-sym--siete { --sym: var(--slot-sym-siete); }
+/* Caída inicial: cada celda entra desde arriba, escalonada por columna. */
+.slot-grid.is-dropping .slot-cell {
+  animation: slot-drop 340ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  animation-delay: calc(var(--row, 0) * 22ms + var(--col, 0) * 16ms);
+}
 
-.slot-sym--siete .slot-cell__glyph,
-.slot-pay__sym.slot-sym--siete {
-  font-family: Georgia, "Times New Roman", serif;
+/* Cascada: lo que cambió vuelve a caer. */
+.slot-cell.is-falling {
+  animation: slot-fall 300ms cubic-bezier(0.2, 0.85, 0.3, 1) both;
+  animation-delay: calc(var(--row, 0) * 16ms);
+}
+
+/* Badge de medallas / cargas, en la barra de título para no tapar la grilla. */
+.slot-mult {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 1px;
+  padding: 3px 9px 4px;
+  border-radius: 999px;
+  background: var(--slot-accent);
+  color: #17190f;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  animation: slot-mult-in 0.3s ease both;
+}
+
+.slot-mult__x {
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.slot-mult strong {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 /* ---------- Resultado ---------- */
@@ -220,7 +253,7 @@
   align-items: center;
   justify-content: center;
   gap: 1px;
-  min-height: 42px;
+  min-height: 40px;
   padding: 0 4px;
   text-align: center;
 }
@@ -242,29 +275,13 @@
 }
 
 .slot-readout[data-tone="win"] .slot-readout__title {
-  color: var(--slot-gold);
-  text-shadow: 0 0 20px var(--slot-gold-soft);
+  color: var(--slot-accent);
+  text-shadow: 0 0 20px var(--slot-accent-soft);
   animation: slot-win-title 0.5s ease both;
 }
 
 .slot-readout[data-tone="spin"] .slot-readout__title {
   color: var(--slot-head-soft);
-}
-
-.slot-lines-legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px 10px;
-  min-height: 12px;
-  padding: 0 2px;
-  color: var(--slot-head-soft);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  text-transform: uppercase;
-  opacity: 0.6;
 }
 
 /* ---------- Apuesta ---------- */
@@ -273,9 +290,9 @@
   align-items: center;
 }
 
-#betOtherBtn.is-active {
-  color: var(--accent);
-  font-weight: 750;
+.slot-speed {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
 }
 
 .slot-bet__chips {
@@ -284,12 +301,62 @@
 }
 
 .slot-bet__chips .chip {
-  --chip-size: clamp(40px, 12.5vw, 50px);
+  --chip-size: clamp(38px, 12vw, 48px);
 }
 
 .slot-bet__chips .chip.is-active {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.slot-bet__chips .chip:disabled {
+  opacity: 0.55;
+}
+
+/* Fila de auto con tres atajos. */
+.slot-auto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slot-auto__label {
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.slot-auto__btn {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.slot-auto__btn.is-active {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+}
+
+.slot-auto__btn:disabled {
+  opacity: 0.5;
+}
+
+.slot-auto__stop {
+  margin-left: auto;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 /* ---------- Hoja de otro monto ---------- */
@@ -351,15 +418,14 @@
 }
 
 .bet-sheet__chips .chip {
-  --chip-size: clamp(42px, 12.5vw, 52px);
+  --chip-size: clamp(40px, 12.5vw, 50px);
 }
 
 /* ---------- Tabla de pagos (Ajustes) ---------- */
 
 .slot-paytable {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 5px;
   margin-bottom: 8px;
 }
 
@@ -368,7 +434,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 7px 9px;
+  padding: 6px 9px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
@@ -382,38 +448,79 @@
   height: 26px;
   border-radius: 8px;
   background: var(--surface);
-  color: var(--sym, var(--ink));
-  font-size: 15px;
-  line-height: 1;
+  color: var(--sym, var(--slot-sym-fallback));
+}
+
+.slot-pay__sym svg {
+  width: 17px;
+  height: 17px;
 }
 
 .slot-pay__name {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: 62px;
   color: var(--ink-soft);
   font-size: 12px;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.slot-pay__mult {
-  color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 750;
+.slot-pay__tiers {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 10px;
+  color: var(--ink-faint);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
+}
+
+.slot-pay__tier b {
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.slot-pay--special {
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
+}
+
+.slot-pay--special .slot-pay__name {
+  color: var(--ink);
 }
 
 /* ---------- Animaciones ---------- */
 
-@keyframes slot-win-pop {
+@keyframes slot-drop {
   from {
-    opacity: 0.5;
-    transform: scale(0.9);
+    opacity: 0;
+    transform: translateY(-120%);
   }
   to {
     opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slot-fall {
+  from {
+    opacity: 0.35;
+    transform: translateY(-70%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slot-win-pop {
+  from {
+    transform: scale(0.88);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  to {
     transform: none;
   }
 }
@@ -429,21 +536,43 @@
   }
 }
 
+@keyframes slot-bonus-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slot-mult-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ---------- Avisos ---------- */
 
-/* El controlador mide el panel de apuesta y deja el aviso justo arriba. */
+/* El controlador mide la máquina y deja el aviso sobre su barra de título,
+   sin tapar la grilla, el resultado ni el botón Girar. */
 .toast {
   bottom: calc(var(--slot-toast-bottom, 24px) + env(safe-area-inset-bottom));
 }
 
 /* ---------- Alturas chicas ---------- */
 
-@media (max-height: 720px) {
+@media (max-height: 760px) {
   .slot-cabinet {
-    --reel-cell: clamp(46px, 14vw, 56px);
+    --cell: min(12vw, 5vh, 48px);
     gap: 8px;
-    padding: 10px 11px 11px;
-    border-radius: 22px;
+    padding: 10px 10px 11px;
   }
 
   .slot-cabinet__head {
@@ -454,7 +583,11 @@
     width: 26px;
     height: 26px;
     border-radius: 8px;
-    font-size: 14px;
+  }
+
+  .slot-cabinet__mark svg {
+    width: 17px;
+    height: 17px;
   }
 
   .slot-cabinet__name {
@@ -470,16 +603,12 @@
     border-radius: 14px;
   }
 
-  .slot-reels {
-    gap: 5px;
-  }
-
-  .slot-reel {
-    border-radius: 8px;
+  .slot-grid {
+    gap: 3px;
   }
 
   .slot-readout {
-    min-height: 36px;
+    min-height: 34px;
   }
 
   .slot-readout__title {
@@ -489,17 +618,14 @@
   .slot-readout__detail {
     font-size: 10px;
   }
-
-  .slot-lines-legend {
-    display: none;
-  }
 }
 
-@media (max-height: 620px) {
+@media (max-height: 660px) {
   .slot-cabinet {
-    --reel-cell: 44px;
+    --cell: min(11.4vw, 4.6vh, 40px);
     gap: 6px;
-    padding: 8px 10px 9px;
+    padding: 8px 9px 9px;
+    border-radius: 20px;
   }
 
   .slot-cabinet__sub {
@@ -507,7 +633,7 @@
   }
 
   .slot-readout {
-    min-height: 30px;
+    min-height: 28px;
   }
 
   .slot-readout__title {
@@ -519,33 +645,31 @@
   }
 
   .slot-bet__chips {
-    min-height: calc(38px + 8px);
+    min-height: calc(36px + 8px);
   }
 
   .slot-bet__chips .chip {
-    --chip-size: 38px;
+    --chip-size: 36px;
+  }
+
+  .slot-auto__btn {
+    padding: 4px 9px;
+    font-size: 11px;
   }
 }
 
 @media (max-width: 340px) {
   .slot-cabinet {
-    --reel-cell: 50px;
-    padding: 10px 10px 11px;
+    padding: 9px 9px 10px;
   }
 
-  .slot-cabinet__sub {
-    font-size: 9.5px;
+  .slot-pay {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
-  .slot-readout__title {
-    font-size: 15.5px;
-  }
-
-  .slot-readout__detail {
-    font-size: 10px;
-  }
-
-  .slot-paytable {
-    grid-template-columns: 1fr;
+  .slot-pay__tiers {
+    flex: 1 0 100%;
+    justify-content: flex-start;
   }
 }

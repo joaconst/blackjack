@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Pulso · Mesa</title>
+  <meta name="description" content="Pulso: tragamonedas de 6×5 con cascadas, cargas y giros gratis.">
+  <meta name="theme-color" content="#f6f5f0" id="themeColor">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mesa">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <script>
+    (function () {
+      try {
+        var prefs = JSON.parse(localStorage.getItem('blackjack.prefs.v1') || 'null') || {};
+        var pref = prefs.theme;
+        var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = pref === 'light' || pref === 'dark' ? pref : (dark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+        var meta = document.getElementById('themeColor');
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f1210' : '#f6f5f0');
+      } catch (e) {}
+    })();
+  </script>
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/cards.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/slots.css">
+  <link rel="stylesheet" href="css/slots-themes.css">
+</head>
+<body data-slot-game="pulso">
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">&#9670;</span>
+        <span class="brand__name" id="brandName">Pulso</span>
+      </div>
+      <div class="topbar__actions">
+        <button type="button" class="icon-btn" id="installBtn" aria-label="Instalar aplicación" hidden>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 19h14"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn" id="soundBtn" aria-label="Silenciar sonidos" aria-pressed="true">
+          <svg class="icon-sound-on" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/>
+            <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+            <path d="M18.5 6a9 9 0 0 1 0 12"/>
+          </svg>
+          <svg class="icon-sound-off" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/>
+            <path d="m16 9.5 4 5M20 9.5l-4 5"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn" id="themeBtn" aria-label="Cambiar a tema oscuro">
+          <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn" id="menuBtn" aria-label="Menú y ajustes" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="wallet" aria-label="Saldo">
+      <div class="wallet__group">
+        <span class="wallet__label">Saldo</span>
+        <strong class="wallet__amount" id="balance">$1.000</strong>
+      </div>
+    </section>
+
+    <main class="slots" aria-label="Tragamonedas Pulso">
+      <section class="slot-cabinet" id="cabinet">
+        <div class="slot-cabinet__head">
+          <span class="slot-cabinet__mark" id="gameMark" aria-hidden="true"></span>
+          <div class="slot-cabinet__titles">
+            <p class="slot-cabinet__name" id="gameName">Pulso</p>
+            <p class="slot-cabinet__sub" id="gameSub">6×5 · desde 8 iguales · cargas</p>
+          </div>
+          <div class="slot-bonus" id="bonusBadge" hidden>
+            <strong class="slot-bonus__count" id="bonusCount">10</strong>
+            <span class="slot-bonus__label">giros</span>
+          </div>
+          <div class="slot-mult" id="multiplierBadge" hidden aria-hidden="true">
+            <span class="slot-mult__x">×</span><strong id="multiplierValue">2</strong>
+          </div>
+        </div>
+
+        <div class="slot-window">
+          <div class="slot-grid" id="grid" role="img" aria-label="Grilla de juego"></div>
+        </div>
+
+        <div class="slot-readout" id="result" role="status" aria-live="polite" data-tone="neutral">
+          <strong class="slot-readout__title" id="resultTitle">Probá suerte</strong>
+          <span class="slot-readout__detail" id="resultDetail">Desde 8 iguales en cualquier lado</span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="controls">
+      <div class="panel slot-bet" id="betPanel">
+        <div class="bet">
+          <div class="bet__info">
+            <span class="bet__label">Apuesta</span>
+            <button type="button" class="bet__amount bet__amount--btn" id="betAmountBtn" aria-label="Cambiar apuesta">$10</button>
+          </div>
+          <button type="button" class="link-btn slot-speed" id="speedBtn">Velocidad: Normal</button>
+        </div>
+        <div class="chips slot-bet__chips" id="betChips" role="group" aria-label="Apuestas rápidas"></div>
+        <div class="slot-auto">
+          <span class="slot-auto__label" aria-hidden="true">Auto</span>
+          <button type="button" class="slot-auto__btn" data-auto="10">×10</button>
+          <button type="button" class="slot-auto__btn" data-auto="50">×50</button>
+          <button type="button" class="slot-auto__btn" data-auto="100">×100</button>
+          <button type="button" class="slot-auto__btn slot-auto__stop" id="autoStop" hidden>Parar</button>
+        </div>
+        <button type="button" class="btn btn--primary" id="spinBtn">Girar</button>
+      </div>
+
+      <div class="panel panel--empty" id="noFundsPanel" hidden>
+        <p class="empty__title">Sin fichas por hoy</p>
+        <p class="empty__text">Mañana volvés a tener $500. Faltan</p>
+        <p class="empty__timer" id="countdown">00:00:00</p>
+        <button type="button" class="link-btn" id="noFundsRulesBtn">Cómo funciona el saldo</button>
+      </div>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet__backdrop" data-close></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="sheetTitle">Ajustes</h2>
+        <button type="button" class="icon-btn" id="sheetClose" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sheet__body">
+        <section class="sheet__section">
+          <h3>Cómo se juega</h3>
+          <ul class="rules" id="rulesList"></ul>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Pagos</h3>
+          <div class="slot-paytable" id="payTable"></div>
+          <p class="sheet__text" id="rtpInfo">A largo plazo devuelve alrededor del 96% de lo apostado.</p>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Gestos</h3>
+          <div class="pref">
+            <div class="pref__text">
+              <p class="pref__title">Atajos en la máquina</p>
+              <p class="sheet__text">Además de los botones.</p>
+            </div>
+            <button type="button" class="switch" id="gesturesBtn" role="switch" aria-checked="true" aria-label="Gestos">
+              <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+              <span class="switch__value" id="gesturesValue">Activados</span>
+            </button>
+          </div>
+          <ul class="rules gestures-map">
+            <li><span class="gesture-chip">Doble toque</span> con la máquina quieta: gira con la misma apuesta.</li>
+            <li><span class="gesture-chip">Doble toque</span> durante el giro: acelera las cascadas sin saltearlas.</li>
+            <li>Los botones siguen siendo la vía principal.</li>
+          </ul>
+          <p class="sheet__text">Empezá el gesto lejos del borde para no chocar con el gesto de atrás del teléfono.</p>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Juego</h3>
+          <p class="sheet__text">Estás jugando a <span id="gameFoot">Pulso</span>. El saldo es el mismo que en el blackjack, el póker y la otra máquina. Los giros gratis pendientes se guardan si cerrás la app.</p>
+          <button type="button" class="btn btn--soft" id="switchGameBtn">Cambiar de juego</button>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Tu saldo</h3>
+          <p class="sheet__text">Empezás con $1.000. Una vez por día, si tu saldo queda por debajo de $500, lo completamos hasta $500.</p>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Instalar en el teléfono</h3>
+          <p class="sheet__text" id="installStatus">Agregala a la pantalla de inicio para usarla como una app.</p>
+          <ol class="steps" id="installSteps" hidden></ol>
+          <button type="button" class="btn btn--soft" id="sheetInstallBtn" hidden>Instalar aplicación</button>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Modo beta <span class="tag">beta</span></h3>
+          <p class="sheet__text">Agregá las fichas que quieras para probar apuestas grandes. Esto no va a estar en la versión final.</p>
+          <button type="button" class="btn btn--soft" id="addFundsBtn">Agregar fichas</button>
+        </section>
+
+        <section class="sheet__section">
+          <h3>Progreso</h3>
+          <button type="button" class="btn btn--danger" id="resetBtn">Reiniciar saldo y empezar de cero</button>
+          <div class="confirm" id="resetConfirm" hidden>
+            <p class="confirm__text">Se borran el saldo, la apuesta guardada y los giros gratis pendientes de las dos máquinas. Tus ajustes, el tema y los gestos se mantienen.</p>
+            <div class="confirm__actions">
+              <button type="button" class="btn btn--soft" id="resetCancel">Cancelar</button>
+              <button type="button" class="btn btn--danger" id="resetGo">Sí, reiniciar</button>
+            </div>
+          </div>
+        </section>
+
+        <p class="sheet__foot"><span id="footGame">Mesa</span> · <span id="appVersion">—</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet" id="addSheet" hidden>
+    <div class="sheet__backdrop" data-close-add></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="addTitle">Agregar fichas</h2>
+        <button type="button" class="icon-btn" id="addClose" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sheet__body">
+        <div class="add-summary">
+          <span class="bet__label">Vas a agregar</span>
+          <strong class="add-total" id="addTotal">$0</strong>
+          <span class="add-after" id="addAfter">Saldo: $1.000</span>
+        </div>
+
+        <div class="chips chips--rail" id="addChips" role="group" aria-label="Fichas para agregar"></div>
+
+        <div class="add-tools">
+          <button type="button" class="link-btn" id="addUndo">Deshacer</button>
+          <button type="button" class="link-btn" id="addClear">Limpiar</button>
+        </div>
+
+        <button type="button" class="btn btn--primary" id="addConfirm" disabled>Agregar</button>
+        <p class="sheet__foot">Solo para probar la beta</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet" id="betSheet" hidden>
+    <div class="sheet__backdrop" data-close-bet></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="betTitle">
+      <div class="sheet__head">
+        <h2 class="sheet__title" id="betTitle">Otro monto</h2>
+        <button type="button" class="icon-btn" id="betClose" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sheet__body">
+        <div class="add-summary">
+          <span class="bet__label">Apuesta</span>
+          <strong class="add-total" id="betTotal">$10</strong>
+          <span class="add-after" id="betAfter">Tenés $1.000</span>
+        </div>
+
+        <label class="custom-bet" for="betInput">
+          <span class="bet__label">Monto</span>
+          <span class="custom-bet__field">
+            <span class="custom-bet__sign" aria-hidden="true">$</span>
+            <input id="betInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="betHint">
+          </span>
+        </label>
+        <p class="sheet__text custom-bet__hint" id="betHint">Entre $5 y tu saldo.</p>
+
+        <div class="chips bet-sheet__chips" id="betSheetChips" role="group" aria-label="Montos rápidos"></div>
+
+        <div class="add-tools">
+          <button type="button" class="link-btn" id="betMax">Máximo</button>
+          <button type="button" class="link-btn" id="betClear">Limpiar</button>
+        </div>
+
+        <button type="button" class="btn btn--primary" id="betUse">Apostar $10</button>
+        <p class="sheet__foot">Mínimo $5 · máximo tu saldo</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/games/slots/controller.js"></script>
+</body>
+</html>

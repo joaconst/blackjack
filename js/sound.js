@@ -223,6 +223,38 @@ class SoundEngine {
     this.hiss({ dur: 0.03, gain: 0.028, freq: 3600, q: 1.2 });
   }
 
+  /* Tragamonedas: giro, cascada, premio grande y bono. */
+
+  spin() {
+    this.hiss({ dur: 0.26, gain: 0.05, freq: 520, sweep: 2600, q: 0.7 });
+    this.tone({ freq: 196, to: 262, dur: 0.24, type: 'sine', gain: 0.06 });
+  }
+
+  cascade({ level = 0 } = {}) {
+    const steps = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+    const freq = steps[Math.min(Math.max(level, 0), steps.length - 1)];
+    this.hiss({ dur: 0.07, gain: 0.045, freq: 2200, sweep: 900, q: 0.8 });
+    this.tone({ freq, dur: 0.22, type: 'triangle', gain: 0.09 });
+    this.tone({ freq: freq * 1.5, dur: 0.26, type: 'sine', gain: 0.038, delay: 0.06 });
+  }
+
+  bigWin() {
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+    notes.forEach((freq, i) => {
+      this.tone({ freq, dur: 0.34, type: 'triangle', gain: 0.09, delay: i * 0.08 });
+      this.tone({ freq: freq * 2, dur: 0.3, type: 'sine', gain: 0.028, delay: i * 0.08 });
+    });
+    this.tone({ freq: 130.81, dur: 0.7, type: 'sine', gain: 0.07, attack: 0.02 });
+  }
+
+  bonus() {
+    const notes = [392, 523.25, 659.25, 783.99, 1046.5, 1318.5];
+    notes.forEach((freq, i) => {
+      this.tone({ freq, dur: 0.3, type: 'sine', gain: 0.075, delay: i * 0.065 });
+    });
+    this.hiss({ dur: 0.5, gain: 0.03, freq: 1200, sweep: 5200, q: 0.6 });
+  }
+
   play(name, options = {}) {
     if (this.muted) return;
     if (!this.ensure()) return;

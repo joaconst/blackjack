@@ -6,12 +6,13 @@ regla, editá acá en el mismo commit.
 
 ## Qué es
 
-Blackjack, póker (Texas Hold'em) y tragamonedas mobile, en español. Sin
-frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offline.
+Blackjack, póker (Texas Hold'em) y dos tragamonedas 6×5, **Táctica** y
+**Pulso**, mobile y en español. Sin frameworks ni build: HTML, CSS y JS puro con
+ES modules. PWA instalable y offline.
 
 - Repo: <https://github.com/joaconst/blackjack.git>, rama `main`, al día con
   `origin`.
-- Versión actual: `v2.12` (`APP_VERSION` en
+- Versión actual: `v3.0` (`APP_VERSION` en
   `js/games/blackjack/controller.js`, `js/games/poker/controller.js` y
   `js/games/slots/controller.js`, `CACHE` en `sw.js`).
 - El detalle de cada versión está en `CHANGELOG.md`; lo que falta, en `TODO.md`.
@@ -19,15 +20,17 @@ frameworks ni build: HTML, CSS y JS puro con ES modules. PWA instalable y offlin
 ## Comandos
 
 ```bash
-npm test                       # 93 tests unitarios de los tres motores (node --test)
+npm test                       # 111 tests unitarios de los motores (node --test)
 npm start                      # npx serve . (el service worker necesita localhost o HTTPS)
 node --check js/games/blackjack/controller.js   # chequeo de sintaxis antes de commitear
 node --check js/games/poker/controller.js
 node --check js/games/slots/controller.js
 node --check js/games/blackjack/engine.js
 node --check js/games/poker/engine.js
-node --check js/games/slots/engine.js
+node --check js/sound.js
 node --check sw.js
+Get-ChildItem js\games\slots\core,js\games\slots\games -Filter *.js |
+  ForEach-Object { node --check $_.FullName }
 ```
 
 Servidor de pruebas usado en sesiones anteriores: `http://localhost:4173/`.
@@ -39,15 +42,18 @@ final, `probe-bj-noscroll.cjs` bloqueo vertical y hojas del blackjack,
 niveles, faroles y charla de los bots, `probe-v26-smoke.cjs` hoja Mesa, ciegas,
 entrada sin tope y 320×568, `probe-v29-mesa.cjs` pistas de ciegas y entrada,
 `probe-v210-blinds.cjs` escalera adaptable y ciega personalizada,
-`probe-slots.cjs` tragamonedas de punta a punta, `probe-slots-edge.cjs` sin
-fichas, bono diario y reinicio, `probe-smoke-games.cjs` navegación entre los tres
-juegos, `shot-slots.cjs` / `shot-win.cjs` / `shot-themes.cjs` capturas,
-`visual.cjs` capturas, `probe-touch*.cjs` gestos).
+`probe-v3-slots.cjs` Táctica y Pulso de punta a punta (selector, giro, ajustes,
+apuesta libre, doble toque, bono, badge y capturas), `probe-v3-smoke.cjs`
+navegación entre los cuatro juegos y redirección de `slots.html`,
+`shot-v3-dark.cjs` capturas del tema oscuro, `measure-head.cjs` medidas de la
+cabecera, `shot-win.cjs` / `shot-themes.cjs` capturas, `visual.cjs` capturas,
+`probe-touch*.cjs` gestos).
 Son temporales: si se limpian, hay que rehacerlas.
 Playwright usa `channel: 'msedge'`, viewport 390×844 y 320×568, `isMobile` y
-`hasTouch`. Ojo: `serve` reescribe las URLs sin `.html` (`/slots`, `/poker`), así
-que los `waitForURL` van con regex (`/\/slots(\.html)?$/`), no con
-`'**/slots.html'`.
+`hasTouch`. Ojo: `serve` reescribe las URLs sin `.html` (`/tactica`, `/pulso`,
+`/poker`), así que los `waitForURL` van con regex (`/\/tactica(\.html)?$/`), no
+con `'**/tactica.html'`. `browser.newContext()` no acepta `channel`: va en
+`chromium.launch()`.
 
 ## Reglas del proyecto
 
@@ -68,15 +74,18 @@ que los `waitForURL` van con regex (`/\/slots(\.html)?$/`), no con
 ## Arquitectura
 
 ```
-index.html            blackjack, selector de los tres juegos y hojas
+index.html            blackjack, selector de los cuatro juegos y hojas
 poker.html            mesa de póker y hoja de ajustes
-slots.html            tragamonedas, ajustes y hoja de "otro monto"
+tactica.html          tragamonedas Táctica, ajustes y hoja de "otro monto"
+pulso.html            tragamonedas Pulso (mismo markup, data-slot-game)
+slots.html            redirección a tactica.html o pulso.html
 css/tokens.css        variables de color, tipografía y medidas
 css/styles.css        layout, mesa, controles, hojas, animaciones
 css/cards.css         skin de cartas y fichas
 css/chooser.css       selector de juego
 css/poker.css         mesa, asientos y acciones de póker
-css/slots.css         gabinete, rodillos, tabla de pagos y tema oscuro
+css/slots.css         gabinete 6×5, celdas, cascada, tabla de pagos
+css/slots-themes.css  paletas clara/oscura y color por símbolo de cada máquina
 js/core/storage.js    claves y lectura/escritura de localStorage
 js/core/money.js      dinero, calendario, fichas y pila de fichas
 js/core/cards.js      mazos, palos y etiquetas de cartas
@@ -90,12 +99,21 @@ js/games/blackjack/engine.js       reglas y cálculos puros del blackjack, sin D
 js/games/blackjack/controller.js   estado, DOM, persistencia, gestos, PWA
 js/games/poker/engine.js           evaluador, apuestas, botes y bots, sin DOM
 js/games/poker/controller.js       turnos, bots, gestos y saldo compartido
-js/games/slots/engine.js           tira, líneas, pagos y giro, sin DOM
-js/games/slots/controller.js       rodillos, animación, apuesta y gestos
+js/games/slots/controller.js       grilla, cascada, bono, apuesta y gestos
+js/games/slots/core/config.js      validación de la config y pesos derivados
+js/games/slots/core/grid.js        grilla 6×5, gravedad, relleno y especiales
+js/games/slots/core/evaluate.js    grupos de 8+, scatter y multiplicadores
+js/games/slots/core/tumble.js      cascadas y acumulación de premios
+js/games/slots/core/spin.js        tirada completa, bono y multiplicador
+js/games/slots/core/metrics.js     simulador de RTP y métricas
+js/games/slots/games/tactica.js    reglas y pagos de Táctica
+js/games/slots/games/pulso.js      reglas y pagos de Pulso
+js/games/slots/games/*.art.js      SVG de cada símbolo y marca de la máquina
+tools/slot-rtp.mjs    calibración de RTP por simulación (node tools/slot-rtp.mjs)
 sw.js                 cache offline (subir CACHE en cada deploy)
 tests/engine.test.js  28 tests del blackjack
 tests/poker.test.js   47 tests del póker
-tests/slots.test.js   18 tests de la tragamonedas
+tests/slots.test.js   36 tests de las tragamonedas 6×5
 ```
 
 - **Capa común (`js/core/`):** todo lo que no es regla de un juego. Los
@@ -103,22 +121,28 @@ tests/slots.test.js   18 tests de la tragamonedas
   fichas, avisos, hojas ni umbrales de gestos: se importan de acá. Para sumar un
   juego nuevo: motor puro + controlador en `js/games/<juego>/`.
 - **Persistencia:** `blackjack.prefs.v1` (tema, sonido, gestos, `botLevel`,
-  `botBluff`, `botTalk`, `bigBlind`, `buyIn`, `slotsBet`, `seenSlotHint`,
-  `game`) y `blackjack.progress.v1` (saldo, apuesta, último saldo diario). El
-  saldo es compartido entre los tres juegos; `game` vale
-  `'blackjack' | 'poker' | 'slots' | ''`. `savePrefs()` de `js/core/prefs.js`
-  mezcla el parche con lo guardado: no volver a escribirlo con un objeto fijo o
-  se pierden el nivel, los faroles, la charla, las ciegas, la entrada y la
-  apuesta de la máquina al cambiar de juego.
+  `botBluff`, `botTalk`, `bigBlind`, `buyIn`, `tacticaBet`, `pulsoBet`,
+  `seenSlotHint`, `game`) y `blackjack.progress.v1` (saldo, apuesta, último saldo
+  diario). El saldo es compartido entre los juegos; `game` vale
+  `'blackjack' | 'poker' | 'tactica' | 'pulso' | ''`, y `'slots'` migra a
+  `'tactica'` en `normalizePrefs`. La apuesta de cada máquina se guarda en su
+  clave (`tacticaBet`, `pulsoBet`); `slotsBet` de v2.12 se lee como respaldo.
+  `savePrefs()` de `js/core/prefs.js` mezcla el parche con lo guardado: no volver
+  a escribirlo con un objeto fijo o se pierden el nivel, los faroles, la charla,
+  las ciegas, la entrada y las apuestas de las máquinas al cambiar de juego.
 - `state.hands` **no se persiste**: al recargar se vuelve a la fase de apuesta.
 - La mesa de póker sí se persiste en `poker.table.v1`; si recargás en medio de
   una mano, se reanuda. El neto se aplica al saldo recién al terminar (`applied`).
-- `index.html` redirige a `poker.html` si `game === 'poker'` y a `slots.html` si
-  `game === 'slots'`. El póker y la tragamonedas guardan `game = ''` antes de
-  volver al selector: el póker para no hacer ping-pong y la máquina para que se
-  pueda elegir otro juego. La tragamonedas **no llama a `savePrefs()` en
-  `pagehide`** (solo guarda el saldo): si lo hiciera, reescribiría
-  `game = 'slots'` al salir y el selector rebotaría a la máquina.
+- El bono de cada máquina se persiste aparte en `slots.bonus.v1.<juego>`
+  (`SLOT_BONUS_PREFIX` en `js/core/storage.js`) y se retoma solo a los 700 ms del
+  arranque.
+- `index.html` redirige a `poker.html` si `game === 'poker'`, a `tactica.html` si
+  es `'tactica'` o el viejo `'slots'`, y a `pulso.html` si es `'pulso'`. El póker
+  y las máquinas guardan `game = ''` antes de volver al selector: el póker para no
+  hacer ping-pong y cada máquina para que se pueda elegir otro juego. La
+  tragamonedas **no llama a `savePrefs()` en `pagehide`** (solo guarda el saldo y,
+  si la partida lo tocó, el bono): si lo hiciera, reescribiría `game` al salir y
+  el selector rebotaría a la máquina.
 - Clases de resultado: las cajas por mano (`.hand.is-win/.is-lose/.is-push`)
   aplican **solo** dentro de `.player-hands.is-multi` (split). En mano única el
   resultado se marca con el badge del puntaje (`.score.is-win/.is-lose`) y el
@@ -133,37 +157,71 @@ tests/slots.test.js   18 tests de la tragamonedas
   (aviso a los 45 px) en 0,9 s. Después de retirarse, el doble toque o `#skipBtn`
   llaman a `skipToEnd()`, que cancela `state.botTimer` y corre a los bots hasta
   `settled` con una guarda de 500 acciones. La preferencia `gestures` es
-  compartida con el blackjack.
-- **Tragamonedas (`js/games/slots/`):** 3 rodillos × 3 filas y **5 líneas
-  fijas** (`SLOT_LINES`: Arriba, Medio, Abajo, V y Montaña). La tira de 30
-  posiciones (`SLOT_STRIP`, conteos 8/7/6/5/3/1) y los pagos por línea
-  (`SLOT_SYMBOLS`: ×2, ×3, ×5, ×10, ×25, ×80 sobre la **apuesta total**) son la
-  única fuente de verdad: el RTP (95,15%) y la frecuencia de premio (22,67%) se
-  calculan desde ahí en `slotRtp()` y `slotHitChance()`, y el test los compara
-  contra la enumeración de las 27.000 combinaciones. `spinSlots({ bet, rng })`
-  elige una posición por rodillo; no tocar esas frecuencias sin volver a correr
-  el test de RTP.
-- En la máquina `SLOT_MIN_BET = 5` y la apuesta es **cualquier entero**, no
-  múltiplos de 5: `normalizeSlotBet(value, saldo)` la recorta al mínimo y al
-  saldo, y `slotBetOptions(saldo)` da las fichas rápidas ($5, $10, $25, $100 y
-  $500). La apuesta se guarda en `slotsBet`; la hoja **Otro monto** (`#betSheet`,
-  input `#betInput`, fichas `#betSheetChips`) escribe cualquier monto y avisa si
-  el mínimo o el saldo no dan.
-- El resultado se calcula antes de animar y el saldo se aplica al instante
-  (`state.balance += result.net`). Mientras `state.spinning`, `visibleBalance()`
-  muestra el saldo ya descontado y esconde el premio (`state.spinWin`), y
-  `betBase()` mantiene estables las fichas. Si se recarga en medio del giro, la
-  plata ya está contada.
-- Gestos de la máquina en `js/games/slots/controller.js`: los umbrales vienen de
-  `js/core/gestures.js` (borde 28 px, `TAP_MAX_MS` 500, `isDoubleTap`). Doble
-  toque quieto **repite la apuesta**; doble toque girando **acelera**
-  (`accelerateSpin`: `SPIN_FAST = 0.28` del tiempo restante, mínimo 70 ms) sin
-  saltear el resultado. La preferencia `gestures` es la misma de los otros dos
-  juegos y el aviso de ayuda usa `seenSlotHint`, separado de `seenGestureHint`.
-- El aviso flotante (`.toast`) se ubica arriba del panel de apuesta:
-  `placeToast()` mide el panel y escribe `--slot-toast-bottom` (lo consume
-  `css/slots.css`). Si se agrega contenido al panel, no volver a clavar un
-  `bottom` fijo o tapa el botón **Girar** en 320×568.
+  compartida con el blackjack y las dos máquinas.
+- **Tragamonedas 6×5 (`js/games/slots/`):** un motor y dos máquinas. El core
+  (`core/config.js`, `grid.js`, `evaluate.js`, `tumble.js`, `spin.js`,
+  `metrics.js`) no sabe de temas ni de nombres: todo lo particular (símbolos,
+  pesos, pagos, scatter, multiplicadores y textos) vive en `games/tactica.js` y
+  `games/pulso.js`, que pasan por `prepareGame()`. El arte está en
+  `games/*.art.js`.
+- **Reglas comunes:** grilla `grid[col][row]` de 6×5 (30 celdas), pago por **8 o
+  más iguales en cualquier posición** (sin líneas), una combinación por símbolo
+  y se suman todas. `pays` tiene tres escalones: 8-9, 10-11 y 12+ (`payTier` /
+  `payFor`), siempre sobre la **apuesta total**. `findWins` excluye los
+  especiales; `runTumble` cobra, borra, aplica gravedad por columna y rellena, y
+  acumula todas las cascadas. `tumble.maxCascades = 60` es una guarda, no una
+  regla de juego.
+- **Especiales clavados:** `createGrid`/`adoptGrid` marcan `locked`, y el scatter
+  y el multiplicador nunca se borran ni se mueven. `gravityAndRefill` compacta
+  por tramos entre especiales, conservando el orden de caída de cada columna;
+  `segments` es el que corta los tramos. Si se agrega un especial, sumarlo a
+  `specialIds` (lo hace `prepareGame`) y revisar `segments`.
+- **Scatter (objetivo / portal):** 4, 5 o 6+ pagan 3×, 5× y 100× la apuesta,
+  aparte del premio de cascadas y nunca multiplicado. 4+ abre el bono. Dentro
+  del bono, 3+ suman 5 giros (`retriggerAdd`) y no vuelven a pagar.
+- **Táctica:** `multipliers.base = 'sum'`: las medallas visibles se suman al
+  cerrar las cascadas y multiplican la tirada si hubo premio. En el bono
+  (`bonus: 'accumulate'`) el `totalMultiplier` se mantiene entre tiradas, solo
+  se aplica si hubo premio **y** cayó una medalla nueva, y se reinicia al
+  empezar el bono. 15 giros gratis.
+- **Pulso:** `base: 'none'` y `bonus: 'spin'`: las cargas solo existen en los
+  giros gratis, se suman y multiplican únicamente el premio de esa tirada; cada
+  giro arranca de cero. 10 giros gratis.
+- **Una sola fuente de verdad:** pesos y pagos son los de `games/*.js`; de ahí
+  salen el RTP, la frecuencia de premio y el peso del bono. El objetivo es 96% y
+  se calibra por **simulación** (`tools/slot-rtp.mjs` o `simulate()` de
+  `core/metrics.js`, 200k tiradas en el test), no por enumeración. No tocar pesos
+  ni pagos sin volver a correr `npm test` y la calibración.
+- **Resolución antes de animar:** `resolveSpin()` devuelve la tirada completa
+  (cascadas, scatter, multiplicador, bono y saldo) antes de mover la grilla. El
+  controlador aplica `state.balance += result.net` al instante y usa
+  `state.displayBalance` para no adelantar el premio: si recargás en medio del
+  giro, la plata ya está contada.
+- **Bono:** `normalizeBonus()` valida y recorta (`MAX_BONUS_SPINS = 200`) y el
+  controlador tiene su propia guarda de 400 giros. Corre solo, usa la apuesta que
+  lo disparó, se guarda en `slots.bonus.v1.<juego>` antes de animar y se retoma
+  a los 700 ms del arranque. Al terminar deja el resultado “Bono: $X”.
+- **Apuesta y velocidad:** `SLOT_MIN_BET = 5` y cualquier entero desde ahí; la
+  apuesta se guarda en `tacticaBet` / `pulsoBet`. Las fichas rápidas salen de
+  `BET_TIERS` ($5, $10, $25, $100 y $500) y aparecen según el saldo. `SPEEDS`
+  tiene tres niveles (Lenta 1,35×, Normal 1×, Rápida 0,6×) y los tiempos base
+  están en `T`. El auto es x10/x50/x100 (`state.auto`).
+- **Tema y estilos:** `body[data-slot-game="tactica|pulso"]` elige la paleta de
+  `css/slots-themes.css` y el color de cada símbolo (`--sym-*`); `css/slots.css`
+  solo tiene la estructura. Para reestilar una máquina alcanza con tocar su
+  bloque; para cambiar un ícono, su `*.art.js`.
+- **Gestos:** los umbrales vienen de `js/core/gestures.js` (borde 28 px,
+  `TAP_MAX_MS` 500, `isDoubleTap`). Doble toque quieto **gira**; doble toque
+  girando activa `state.turbo`, que multiplica los tiempos restantes por **0,38**
+  (mínimo 60 ms) sin saltear el resultado; se apaga al terminar el giro. La
+  preferencia `gestures` es la misma de los otros dos juegos y el aviso de ayuda
+  usa `seenSlotHint`, separado de `seenGestureHint`.
+- **Aviso y badges:** el aviso (`.toast`) se apoya sobre la barra de título de la
+  máquina (`TOAST_LIFT = 32` medido desde el borde superior del gabinete), no
+  sobre la grilla, el resultado ni **Girar**. El badge de multiplicador vive en
+  `.slot-cabinet__head`; `.slot-cabinet__titles { margin-right: auto }` empuja
+  los badges a la derecha. En 320×568 la celda queda en ~26 px y la grilla mide
+  ~172 px: sin scroll ni desborde.
 - **La pantalla de juego no panea en ningún juego:** `.app` usa
   `touch-action: none` en `css/styles.css` y `.poker__table` lo repite. Los desliz
   verticales no mueven ni hacen rebotar la página, tampoco sobre las fichas. Las
@@ -172,11 +230,11 @@ tests/slots.test.js   18 tests de la tragamonedas
   del panel de subida y del banner de resultado); `closeRaise()` y
   `startNewHand()` vuelven a `scrollY = 0`. No mover el bloqueo a `html`/`body`:
   rompería las hojas.
-- **Fichas beta:** están en los tres juegos, en Ajustes. La hoja vive en
+- **Fichas beta:** están en los cuatro juegos, en Ajustes. La hoja vive en
   `createAddFundsSheet` (`js/core/chips.js`); el controlador aporta el saldo base
   y qué pasa al confirmar. El póker usa `available()`, así no cuenta lo
-  comprometido en la mano. Al confirmar se llama `saveProgress()` y `render()`.
-  `makeChip(value, { verb })` cambia la etiqueta accesible: en la máquina las
+  comprometido en la mano. Al confirmar se llama a `saveProgress()` y `render()`.
+  `makeChip(value, { verb })` cambia la etiqueta accesible: en las máquinas las
   fichas dicen “Apostar” y en la hoja “Usar”.
 - Póker: ciegas estándar `$5/$10`, `$50/$100`, `$500/$1.000`, `$5.000/$10.000`,
   `$50.000/$100.000`, `$500.000/$1.000.000`, `$5.000.000/$10.000.000` y
@@ -254,16 +312,20 @@ Se inyecta un `Math.random` con mulberry-ish en `addInitScript`:
 | `18` | par de 8 (split) |
 | `122` | par de ases |
 
-La tragamonedas usa el mismo `Math.random` inyectado: el resultado se calcula
-antes de animar, pero el relleno de los rodillos consume semilla, así que no vale
+La tragamonedas usa el mismo `Math.random` inyectado. El resultado se calcula
+antes de animar, pero el relleno de la grilla consume semilla, así que no vale
 predecir un premio por semilla. Para capturar un giro ganador, girar hasta que
-salga (`shot-win.cjs`) o forzar el escenario desde el motor en Node.
+salga (lo hace `probe-v3-slots.cjs`) o forzar el escenario desde el motor en Node
+con `resolveSpin(config, { grid, multValues })`. Para sembrar un bono, escribir
+`slots.bonus.v1.<juego>` en `localStorage` desde `addInitScript` antes de cargar
+la página, sin recargar después.
 
 ## Verificación antes de dar algo por terminado
 
 1. `node --check` de los tres controladores (`blackjack`, `poker`, `slots`), los
-   tres `engine.js` y `sw.js`.
-2. `npm test` → 93/93 (28 de blackjack + 47 de póker + 18 de tragamonedas).
+   dos `engine.js` (blackjack y póker), `js/sound.js`, `sw.js` y todos los
+   módulos de `js/games/slots/core/` y `js/games/slots/games/`.
+2. `npm test` → 111/111 (28 de blackjack + 47 de póker + 36 de tragamonedas).
 3. Playwright blackjack: victoria (244) y derrota (3) en mano única sin caja;
    split (18) conserva cajas redondeadas; capturas en 390×844 y 320×568; sin
    errores de consola. Comprobar que un swipe vertical sobre las fichas, el
@@ -292,16 +354,16 @@ salga (`shot-win.cjs`) o forzar el escenario desde el motor en Node.
    saldo de $1.000.000 y $1.000.000.000, techo saldo/10, mínimo $10, par
    automático, avisos de máximo y mínimo, guardado, recarga, cancelar, jugar una
    mano con la ciega propia y layout en 320×568.
-5. Playwright tragamonedas (`probe-slots.cjs`): selector con las tres tarjetas,
-   apuesta con fichas, giro con premio y sin premio, saldo sin spoiler durante el
-   giro, aceleración por doble toque (medida contra el giro normal), repetición
-   con la máquina quieta, monto escrito ($37) y su persistencia tras recargar,
-   recorte al saldo, fichas beta, tabla de pagos y RTP, cambio de juego, y
-   layout en 390×844 y 320×568 sin desborde ni scroll vertical. Sumar
-   `probe-slots-edge.cjs` (sin fichas, bono diario, reinicio) y
-   `probe-smoke-games.cjs` (blackjack ↔ póker ↔ tragamonedas sin rebotes).
-   Revisar las capturas: el aviso no debe tapar **Girar** y las celdas ganadoras
-   tienen que quedar marcadas en dorado.
+5. Playwright tragamonedas (`probe-v3-slots.cjs`): selector con las **cuatro
+   tarjetas**, grilla de 30 celdas, giro con saldo sin spoiler, ajustes con las 7
+   reglas, la tabla de pagos, el RTP y la versión, apuesta libre de $37, doble
+   toque, bono retomado y terminado, badge de medallas y layout en 390×844 y
+   320×568 sin desborde ni scroll vertical. Sumar `probe-v3-smoke.cjs`
+   (blackjack ↔ póker ↔ Táctica ↔ Pulso sin rebotes, `slots.html` redirige y la
+   versión del blackjack) y `shot-v3-dark.cjs` (capturas del tema oscuro).
+   Revisar las capturas: el aviso no debe tapar la barra de título, el resultado
+   ni **Girar**, las celdas ganadoras quedan marcadas en dorado y las dos
+   máquinas conservan su paleta.
 6. Si se tocó interacción, probar gestos con touch real simulado (CDP
    `Input.dispatchTouchEvent`), no solo con clicks.
 7. Commit + push y confirmar que `HEAD` y `origin/main` coinciden.

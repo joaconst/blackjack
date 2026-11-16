@@ -67,7 +67,7 @@ import {
 } from '../../core/gestures.js';
 import { sound, unlockSoundOnGesture } from '../../sound.js';
 
-const APP_VERSION = 'v2.12';
+const APP_VERSION = 'v3.0';
 const money = formatMoney;
 const PLAYER_NAMES = ['Vos', 'Ana', 'Beto', 'Caro'];
 // Ana juega tight, Beto balanced y Caro aggro.

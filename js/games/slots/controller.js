@@ -1,22 +1,24 @@
+// Controlador compartido de las dos máquinas de 6×5.
+// La página elige el juego con <body data-slot-game="tactica|pulso">.
+// Todo lo particular (reglas, pagos, tema, íconos) vive en games/.
+
+import { normalizeBonus, resolveSpin } from './core/spin.js';
+import { TACTICA_GAME } from './games/tactica.js';
+import { PULSO_GAME } from './games/pulso.js';
+import { TACTICA_ART } from './games/tactica.art.js';
+import { PULSO_ART } from './games/pulso.art.js';
 import {
-  SLOT_DEFAULT_BET,
-  SLOT_LINES,
-  SLOT_MIN_BET,
-  SLOT_STRIP,
-  SLOT_SYMBOLS,
-  gridForStops,
-  normalizeSlotBet,
-  slotBetOptions,
-  slotHitChance,
-  slotRtp,
-  spinSlots,
-} from './engine.js';
-import { DAILY_FLOOR, formatMoney, msUntilNextDay } from '../../core/money.js';
-import { PROGRESS_KEY, removeStored } from '../../core/storage.js';
-import { loadPrefs as loadStoredPrefs, savePrefs as saveStoredPrefs } from '../../core/prefs.js';
+  CHIP_TIERS,
+  DAILY_FLOOR,
+  formatMoney,
+  msUntilNextDay,
+} from '../../core/money.js';
+import { PROGRESS_KEY, SLOT_BONUS_PREFIX, removeStored } from '../../core/storage.js';
+import { readStored, writeStored } from '../../core/storage.js';
+import { loadPrefs, savePrefs as saveStoredPrefs } from '../../core/prefs.js';
 import {
   applyDailyTopUp,
-  loadProgress as loadStoredProgress,
+  loadProgress,
   saveProgress as saveStoredProgress,
 } from '../../core/wallet.js';
 import {
@@ -33,7 +35,6 @@ import {
   watchTheme,
 } from '../../core/ui.js';
 import {
-  buildAddChips,
   chipIndex,
   createAddFundsSheet,
   makeChip,
@@ -41,30 +42,57 @@ import {
 import { GESTURE_EDGE, TAP_MAX_MS, isDoubleTap } from '../../core/gestures.js';
 import { sound, unlockSoundOnGesture } from '../../sound.js';
 
-const APP_VERSION = 'v2.12';
+const APP_VERSION = 'v3.0';
+
+const SLOT_MIN_BET = 5;
+const SLOT_DEFAULT_BET = 10;
+const BET_TIERS = [5, 10, 25, 100, 500];
+
+const SPEEDS = [
+  { label: 'Lenta', factor: 1.35 },
+  { label: 'Normal', factor: 1 },
+  { label: 'Rápida', factor: 0.6 },
+];
+
+const T = { drop: 300, win: 430, fall: 250, between: 260, bonus: 520 };
+
+const GAME_ID = document.body.dataset.slotGame === 'pulso' ? 'pulso' : 'tactica';
+const GAME = GAME_ID === 'pulso' ? PULSO_GAME : TACTICA_GAME;
+const ART = GAME_ID === 'pulso' ? PULSO_ART : TACTICA_ART;
+const COPY = GAME.copy;
+const BET_KEY = `${GAME_ID}Bet`;
+const BONUS_KEY = `${SLOT_BONUS_PREFIX}${GAME_ID}`;
+
 const money = formatMoney;
-const SPIN_DURATIONS = [860, 1010, 1160];
-const SPIN_FAST = 0.28;
-const SPIN_MIN_MS = 70;
-const FILLER_CELLS = 9;
-const INITIAL_STOPS = [4, 16, 26];
 
 let resetting = false;
+// Solo se reescribe el bono guardado si la partida lo tocó: así una recarga
+// apenas abre la página no borra los giros gratis que ya estaban en disco.
+let bonusTouched = false;
 
 const els = {
   balance: document.getElementById('balance'),
   cabinet: document.getElementById('cabinet'),
-  reels: document.getElementById('reels'),
-  strips: ['strip0', 'strip1', 'strip2'].map((id) => document.getElementById(id)),
+  grid: document.getElementById('grid'),
   result: document.getElementById('result'),
   resultTitle: document.getElementById('resultTitle'),
   resultDetail: document.getElementById('resultDetail'),
-  lineLegend: document.getElementById('lineLegend'),
+  multiplierBadge: document.getElementById('multiplierBadge'),
+  multiplierValue: document.getElementById('multiplierValue'),
+  bonusBadge: document.getElementById('bonusBadge'),
+  bonusCount: document.getElementById('bonusCount'),
+  gameMark: document.getElementById('gameMark'),
+  gameName: document.getElementById('gameName'),
+  gameSub: document.getElementById('gameSub'),
+  brandName: document.getElementById('brandName'),
+  gameFoot: document.getElementById('gameFoot'),
   betPanel: document.getElementById('betPanel'),
-  betAmount: document.getElementById('betAmount'),
+  betAmountBtn: document.getElementById('betAmountBtn'),
   betChips: document.getElementById('betChips'),
-  betOtherBtn: document.getElementById('betOtherBtn'),
   spinBtn: document.getElementById('spinBtn'),
+  speedBtn: document.getElementById('speedBtn'),
+  autoStop: document.getElementById('autoStop'),
+  autoButtons: Array.from(document.querySelectorAll('[data-auto]')),
   noFundsPanel: document.getElementById('noFundsPanel'),
   countdown: document.getElementById('countdown'),
   noFundsRulesBtn: document.getElementById('noFundsRulesBtn'),
@@ -83,6 +111,7 @@ const els = {
   installStatus: document.getElementById('installStatus'),
   installSteps: document.getElementById('installSteps'),
   appVersion: document.getElementById('appVersion'),
+  rulesList: document.getElementById('rulesList'),
   payTable: document.getElementById('payTable'),
   rtpInfo: document.getElementById('rtpInfo'),
   resetBtn: document.getElementById('resetBtn'),
@@ -110,10 +139,26 @@ const els = {
   betUse: document.getElementById('betUse'),
 };
 
-/* ---------- Almacenamiento ---------- */
+/* ---------- Apuesta ---------- */
 
-const storedPrefs = loadStoredPrefs();
-const storedProgress = loadStoredProgress();
+function normalizeBet(value, balance) {
+  if (!(balance >= SLOT_MIN_BET)) return 0;
+  const amount = Math.floor(Number(value));
+  if (!Number.isFinite(amount) || amount < SLOT_MIN_BET) {
+    return Math.min(SLOT_DEFAULT_BET, balance);
+  }
+  return Math.min(amount, balance);
+}
+
+function betOptions(balance) {
+  return BET_TIERS.filter((tier) => tier <= balance);
+}
+
+/* ---------- Estado ---------- */
+
+const storedPrefs = loadPrefs();
+const storedProgress = loadProgress();
+const savedBet = storedPrefs[BET_KEY] ?? storedPrefs.slotsBet;
 
 const state = {
   balance: storedProgress.balance,
@@ -121,40 +166,51 @@ const state = {
   theme: storedPrefs.theme,
   sound: storedPrefs.sound,
   gestures: storedPrefs.gestures,
-  bet: normalizeSlotBet(storedPrefs.slotsBet, storedProgress.balance),
   seenSlotHint: storedPrefs.seenSlotHint === true,
+  speed: [0, 1, 2].includes(storedPrefs.slotSpeed) ? storedPrefs.slotSpeed : 1,
+  bet: normalizeBet(savedBet, storedProgress.balance),
+  bonus: normalizeBonus(GAME, readStored(BONUS_KEY), {
+    bet: normalizeBet(savedBet, storedProgress.balance) || SLOT_DEFAULT_BET,
+  }),
   spinning: false,
-  spinWin: 0,
+  inBonus: false,
+  auto: 0,
+  autoTimer: 0,
+  displayBalance: storedProgress.balance,
   grid: null,
-  stops: INITIAL_STOPS.slice(),
-  run: null,
-  frame: 0,
+  cells: [],
+  turbo: false,
+  bonusSpin: 0,
 };
 
 function saveProgress() {
   if (resetting) return;
-  saveStoredProgress({
-    balance: state.balance,
-    lastTopUp: state.lastTopUp,
-  });
+  saveStoredProgress({ balance: state.balance, lastTopUp: state.lastTopUp });
 }
 
-function savePrefs() {
+function savePrefs(patch = {}) {
   saveStoredPrefs({
     theme: state.theme,
     sound: state.sound,
     gestures: state.gestures,
-    slotsBet: state.bet,
+    slotSpeed: state.speed,
     seenSlotHint: state.seenSlotHint,
-    game: 'slots',
+    [BET_KEY]: state.bet,
+    game: GAME_ID,
+    ...patch,
   });
 }
 
-/** Deja siempre una apuesta válida cuando el saldo alcanza. */
+function saveBonus() {
+  if (resetting) return;
+  bonusTouched = true;
+  if (state.bonus) writeStored(BONUS_KEY, state.bonus);
+  else removeStored(BONUS_KEY);
+}
+
 function ensureBet() {
   if (state.spinning) return;
-  const wanted = state.bet >= SLOT_MIN_BET ? state.bet : SLOT_DEFAULT_BET;
-  const next = normalizeSlotBet(wanted, state.balance);
+  const next = normalizeBet(state.bet || SLOT_DEFAULT_BET, state.balance);
   if (next === state.bet) return;
   state.bet = next;
   savePrefs();
@@ -180,82 +236,162 @@ function applyGestures() {
   });
 }
 
-/* ---------- Rodillos ---------- */
+/* ---------- Grilla ---------- */
 
-function cellNode(symbol) {
-  const cell = document.createElement('div');
-  cell.className = `slot-cell slot-sym--${symbol}`;
-
-  const glyph = document.createElement('span');
-  glyph.className = 'slot-cell__glyph';
-  glyph.setAttribute('aria-hidden', 'true');
-  glyph.textContent = SLOT_SYMBOLS[symbol].glyph;
-
-  cell.append(glyph);
-  return cell;
+function idleGrid() {
+  return Array.from({ length: GAME.reels }, () =>
+    Array.from(
+      { length: GAME.rows },
+      () => GAME.symbols[Math.floor(Math.random() * GAME.symbols.length)],
+    ),
+  );
 }
 
-function fillStrip(element, symbols) {
-  element.replaceChildren(...symbols.map(cellNode));
-  element.style.transform = 'translateY(0)';
+function artFor(id) {
+  const art = ART[id] || '<circle cx="12" cy="12" r="8" fill="currentColor"/>';
+  return `<svg class="slot-cell__art" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${art}</svg>`;
 }
 
-function updateReelLabel() {
-  if (!state.grid) return;
-  const text = state.grid
-    .map((reel) => reel.map((symbol) => SLOT_SYMBOLS[symbol].label).join(', '))
-    .join(' · ');
-  els.reels.setAttribute('aria-label', `Rodillos: ${text}`);
-}
-
-function buildReels() {
-  state.grid = gridForStops(state.stops);
-  els.strips.forEach((element, index) => fillStrip(element, state.grid[index]));
-  updateReelLabel();
-}
-
-function clearWinMarks() {
-  for (const strip of els.strips) {
-    for (const cell of strip.children) cell.classList.remove('is-win');
+function buildGrid() {
+  els.grid.replaceChildren();
+  state.cells = [];
+  for (let col = 0; col < GAME.reels; col += 1) {
+    const column = [];
+    for (let row = 0; row < GAME.rows; row += 1) {
+      const cell = document.createElement('div');
+      cell.className = 'slot-cell';
+      cell.dataset.symbol = '';
+      cell.style.gridColumn = String(col + 1);
+      cell.style.gridRow = String(row + 1);
+      cell.style.setProperty('--col', col);
+      cell.style.setProperty('--row', row);
+      els.grid.append(cell);
+      column.push(cell);
+    }
+    state.cells.push(column);
   }
 }
 
-function markWins(result) {
-  clearWinMarks();
-  for (const line of result.lines) {
-    line.rows.forEach((row, index) => {
-      const cell = els.strips[index].children[row];
+function setCell(cell, id) {
+  if (!id) return;
+  if (cell.dataset.symbol === id) return;
+  cell.dataset.symbol = id;
+  cell.className = `slot-cell slot-sym--${id}${GAME.specialIds.has(id) ? ' is-special' : ''}`;
+  cell.innerHTML = artFor(id);
+}
+
+function clearWins() {
+  for (const column of state.cells) {
+    for (const cell of column) cell.classList.remove('is-win');
+  }
+}
+
+function markWins(wins) {
+  for (const win of wins) {
+    for (const [col, row] of win.cells) {
+      const cell = state.cells[col] && state.cells[col][row];
       if (cell) cell.classList.add('is-win');
-    });
+    }
   }
 }
 
-/* ---------- Saldo y apuesta ---------- */
+/** Pinta una grilla completa y anima solo las celdas que cambiaron. */
+function renderGrid(grid, { drop = false, fall = false } = {}) {
+  const previous = state.grid;
+  const changed = [];
 
-function visibleBalance() {
-  return state.spinning ? state.balance - state.spinWin : state.balance;
+  for (let col = 0; col < GAME.reels; col += 1) {
+    for (let row = 0; row < GAME.rows; row += 1) {
+      const id = grid[col][row];
+      const cell = state.cells[col][row];
+      if (previous && previous[col][row] === id) continue;
+      setCell(cell, id);
+      changed.push(cell);
+    }
+  }
+
+  state.grid = grid.map((column) => column.slice());
+
+  if (drop) {
+    els.grid.classList.remove('is-dropping');
+    void els.grid.offsetWidth;
+    els.grid.classList.add('is-dropping');
+    setTimeout(() => els.grid.classList.remove('is-dropping'), 460);
+  }
+
+  if (fall) {
+    for (const cell of changed) {
+      cell.classList.remove('is-falling');
+      void cell.offsetWidth;
+      cell.classList.add('is-falling');
+    }
+    setTimeout(() => {
+      for (const cell of changed) cell.classList.remove('is-falling');
+    }, 380);
+  }
 }
+
+function visibleOrbs(spin) {
+  if (!state.grid) return [];
+  return spin.orbs.filter(({ col, row, value }) => {
+    const id = state.grid[col][row];
+    return id === GAME.multipliers.id && value > 0;
+  });
+}
+
+function multBadgeTotal(spin) {
+  const orbs = visibleOrbs(spin);
+  const sum = orbs.reduce((total, orb) => total + orb.value, 0);
+  if (state.inBonus && GAME.multipliers.bonus === 'accumulate') {
+    // En el bono de Táctica manda el acumulado, no solo lo que se ve.
+    const total = spin.multiplier.totalMultiplier || 0;
+    return total > 0 ? total : sum;
+  }
+  return sum;
+}
+
+function refreshMultiplierBadge(spin) {
+  const total = spin ? multBadgeTotal(spin) : 0;
+  els.multiplierBadge.hidden = total <= 0;
+  if (total > 0) els.multiplierValue.textContent = String(total);
+}
+
+function updateGridLabel() {
+  if (!state.grid) return;
+  const counts = new Map();
+  for (const column of state.grid) {
+    for (const id of column) counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  const parts = [];
+  for (const [id, count] of counts) {
+    const meta = GAME.symbolMeta[id];
+    const label = meta
+      ? meta.label
+      : id === GAME.scatter.id
+        ? GAME.scatter.label
+        : GAME.multipliers
+          ? GAME.multipliers.label
+          : 'especial';
+    parts.push(`${count} ${label}`);
+  }
+  els.grid.setAttribute('aria-label', `Grilla: ${parts.join(', ')}`);
+}
+
+/* ---------- Saldo y controles ---------- */
 
 function renderWallet(tone = null) {
-  els.balance.textContent = money(visibleBalance());
+  els.balance.textContent = money(state.displayBalance);
   if (tone) animateWalletUI(els.balance, tone);
-}
-
-/** Saldo antes del giro: mantiene estables las fichas mientras corren los rodillos. */
-function betBase() {
-  return state.spinning ? visibleBalance() + state.bet : state.balance;
 }
 
 let betChipSignature = '';
 
 function renderBetChips() {
-  const options = slotBetOptions(betBase());
+  const options = betOptions(state.balance);
   const signature = options.join(',');
   if (signature !== betChipSignature) {
     betChipSignature = signature;
-    els.betChips.replaceChildren(
-      ...options.map((value) => makeChip(value, { verb: 'Apostar' })),
-    );
+    els.betChips.replaceChildren(...options.map((value) => makeChip(value, { verb: 'Apostar' })));
   }
   els.betChips.hidden = options.length === 0;
 
@@ -268,26 +404,41 @@ function renderBetChips() {
 }
 
 function renderBet() {
-  els.betAmount.textContent = money(state.bet);
-  const custom =
-    state.bet >= SLOT_MIN_BET && !slotBetOptions(betBase()).includes(state.bet);
-  els.betOtherBtn.textContent = custom ? money(state.bet) : 'Otro monto';
-  els.betOtherBtn.classList.toggle('is-active', custom);
-  els.betOtherBtn.disabled = state.spinning;
+  els.betAmountBtn.textContent = money(state.bet);
+  els.betAmountBtn.disabled = state.spinning;
+  els.betAmountBtn.setAttribute('aria-label', `Apuesta ${money(state.bet)}: cambiar monto`);
+  els.speedBtn.textContent = `Velocidad: ${SPEEDS[state.speed].label}`;
+  els.speedBtn.disabled = state.spinning;
+
+  for (const button of els.autoButtons) {
+    button.disabled = state.spinning;
+    button.classList.toggle('is-active', state.auto > 0);
+  }
+  els.autoStop.hidden = state.auto <= 0;
+}
+
+function renderBonus() {
+  const active = Boolean(state.bonus);
+  els.bonusBadge.hidden = !active;
+  if (active) els.bonusCount.textContent = String(state.bonus.remaining);
 }
 
 function renderControls() {
-  const empty = !state.spinning && state.balance < SLOT_MIN_BET;
+  const empty = !state.spinning && !state.bonus && state.balance < SLOT_MIN_BET;
   els.betPanel.hidden = empty;
   els.noFundsPanel.hidden = !empty;
 
   const canSpin =
-    !state.spinning && state.bet >= SLOT_MIN_BET && state.bet <= state.balance;
+    !state.spinning && !state.bonus && state.bet >= SLOT_MIN_BET && state.bet <= state.balance;
   els.spinBtn.disabled = !canSpin;
-  els.spinBtn.textContent = state.spinning ? 'Girando…' : 'Girar';
+  els.spinBtn.textContent = state.spinning ? 'Girando…' : state.bonus ? 'Bono en curso' : 'Girar';
   els.spinBtn.setAttribute(
     'aria-label',
-    state.spinning ? 'Girando' : canSpin ? `Girar con ${money(state.bet)}` : 'Girar',
+    state.spinning || state.bonus
+      ? 'Girando'
+      : canSpin
+        ? `Girar con ${money(state.bet)}`
+        : 'Girar',
   );
 }
 
@@ -295,19 +446,22 @@ function render() {
   renderWallet();
   renderBet();
   renderBetChips();
+  renderBonus();
   renderControls();
   renderCountdown();
   placeToast();
 }
 
 /**
- * El aviso flota arriba del panel de apuesta: si queda abajo tapa el botón Girar.
- * Se mide el panel porque su alto cambia con la altura de la pantalla.
+ * El aviso flota sobre la barra de título de la máquina: no tapa ni la grilla,
+ * ni el resultado, ni el botón Girar. Se mide la máquina porque su alto cambia
+ * con la pantalla.
  */
+const TOAST_LIFT = 32;
+
 function placeToast() {
-  const panel = els.betPanel.hidden ? els.noFundsPanel : els.betPanel;
-  if (!panel || panel.hidden) return;
-  const bottom = window.innerHeight - panel.getBoundingClientRect().top + 10;
+  const top = els.cabinet.getBoundingClientRect().top;
+  const bottom = window.innerHeight - top - TOAST_LIFT;
   document.documentElement.style.setProperty(
     '--slot-toast-bottom',
     `${Math.max(16, Math.round(bottom))}px`,
@@ -325,6 +479,7 @@ function maybeTopUp() {
   if (!result.applied) return false;
 
   state.balance = result.balance;
+  state.displayBalance = result.balance;
   state.lastTopUp = result.today;
   ensureBet();
   saveProgress();
@@ -334,169 +489,234 @@ function maybeTopUp() {
   return true;
 }
 
-/* ---------- Giro ---------- */
+/* ---------- Tiempos ---------- */
 
-function winDetail(result) {
-  return result.lines.map((line) => `${line.label} ×${line.multiplier}`).join(' · ');
+function wait(ms) {
+  const factor = SPEEDS[state.speed].factor * (state.turbo ? 0.38 : 1);
+  return new Promise((resolve) => {
+    setTimeout(resolve, Math.max(60, Math.round(ms * factor)));
+  });
 }
 
-function easeOutCubic(value) {
-  return 1 - (1 - value) ** 3;
-}
+/* ---------- Animación ---------- */
 
-function finishReel(reel) {
-  fillStrip(reel.element, reel.final);
-  reel.reelElement.classList.add('is-stopped');
-  setTimeout(() => reel.reelElement.classList.remove('is-stopped'), 220);
-  if (state.sound) sound.play('tick');
-}
+async function animateSpin(spin) {
+  renderGrid(spin.initialGrid, { drop: true });
+  refreshMultiplierBadge(spin);
+  updateGridLabel();
+  if (state.sound) sound.play('spin');
+  await wait(T.drop);
 
-function stepReels(now) {
-  const run = state.run;
-  if (!run) return;
+  for (const step of spin.steps) {
+    markWins(step.wins);
+    if (state.sound) sound.play(step.index === 0 ? 'win' : 'cascade', { level: step.index });
+    const count = step.wins.reduce((total, win) => total + win.count, 0);
+    setResult(`Cascada ${step.index + 1}`, `${count} fichas · +${money(step.pay)}`, 'win');
+    await wait(T.win);
 
-  let pending = false;
-  for (const reel of run.reels) {
-    if (reel.done) continue;
-    const progress = Math.min(1, (now - reel.startedAt) / reel.duration);
-    const y = reel.from + (reel.to - reel.from) * easeOutCubic(progress);
-    reel.currentY = y;
-    reel.element.style.transform = `translateY(${y}px)`;
-
-    if (progress >= 1) {
-      reel.done = true;
-      finishReel(reel);
-    } else {
-      pending = true;
-    }
+    clearWins();
+    renderGrid(step.after, { fall: true });
+    refreshMultiplierBadge(spin);
+    updateGridLabel();
+    await wait(T.fall);
   }
 
-  if (pending) state.frame = requestAnimationFrame(stepReels);
-  else finishSpin(run);
+  refreshMultiplierBadge(spin);
 }
 
-function finishSpin(run) {
-  state.run = null;
-  state.frame = 0;
-  state.spinning = false;
-  state.grid = run.result.grid.map((reel) => reel.slice());
-  state.stops = run.result.stops.slice();
-  updateReelLabel();
-  markWins(run.result);
+function winDetail(spin) {
+  const parts = [];
+  if (spin.cascades > 0) {
+    parts.push(`${spin.cascades} cascada${spin.cascades === 1 ? '' : 's'}`);
+  }
+  if (spin.multiplier.applied) parts.push(`×${spin.multiplier.value}`);
+  if (spin.scatter.pay > 0) {
+    parts.push(`${spin.scatter.count} ${GAME.scatter.label} · ${money(spin.scatter.pay)}`);
+  }
+  if (!parts.length) return 'Probá de nuevo';
+  return parts.join(' · ');
+}
 
-  const win = state.spinWin;
-  state.spinWin = 0;
-  if (win > 0) {
-    setResult(`Ganaste ${money(win)}`, winDetail(run.result), 'win');
+function finishSpin(spin) {
+  state.turbo = false;
+  state.displayBalance = state.balance;
+  renderBonus();
+
+  if (spin.totalWin > 0) {
+    setResult(`Ganaste ${money(spin.totalWin)}`, winDetail(spin), 'win');
+    const ratio = spin.totalWin / Math.max(1, spin.bet);
+    if (state.sound) sound.play(ratio >= 25 ? 'bigWin' : 'win');
   } else {
-    setResult('No hubo premio', 'Probá de nuevo · 5 líneas fijas', 'neutral');
+    setResult('No hubo premio', 'Probá de nuevo · desde 8 iguales', 'neutral');
+  }
+
+  if (spin.freeSpins.triggered) {
+    const free = spin.nextBonus ? spin.nextBonus.remaining : GAME.scatter.freeSpins;
+    toast(`¡${free} giros gratis!`);
+    if (state.sound) sound.play('bonus');
+  }
+
+  renderWallet(spin.net > 0 ? 'win' : spin.net < 0 ? 'lose' : null);
+  render();
+}
+
+/* ---------- Giros ---------- */
+
+async function runBonus(bonus) {
+  state.bonus = normalizeBonus(GAME, bonus, { bet: bonus.bet });
+  if (!state.bonus) {
+    render();
+    return;
+  }
+
+  state.inBonus = true;
+  state.spinning = true;
+  state.bonusSpin = 0;
+  saveBonus();
+  render();
+  toast(`Bono: ${state.bonus.remaining} giros por jugar`);
+  await wait(T.between);
+
+  let guard = 0;
+  let won = 0;
+  while (state.bonus && guard < 400) {
+    guard += 1;
+    state.bonusSpin += 1;
+    const spin = resolveSpin(GAME, {
+      bet: state.bonus.bet,
+      bonus: state.bonus,
+      capture: true,
+    });
+
+    // La plata y los giros restantes se guardan antes de animar: si recargás
+    // en medio del giro, no se cobra dos veces.
+    state.balance += spin.net;
+    state.bonus = spin.nextBonus;
+    // El saldo visible no adelanta el premio: recién sube al cerrar la animación.
+    state.displayBalance = state.balance - spin.totalWin;
+    saveProgress();
+    saveBonus();
+
+    setResult(
+      `Giro gratis ${state.bonusSpin}`,
+      state.bonus ? `Quedan ${state.bonus.remaining}` : 'Último giro',
+      'spin',
+    );
+    render();
+    await animateSpin(spin);
+
+    state.displayBalance = state.balance;
+    const win = spin.totalWin;
+    won += win;
+    if (win > 0) {
+      const label = spin.multiplier.applied ? `×${spin.multiplier.value} · ` : '';
+      setResult(`Ganaste ${money(win)}`, `${label}${winDetail(spin)}`, 'win');
+    } else {
+      setResult('Sin premio en este giro', 'Sigue el bono', 'neutral');
+    }
+    renderBonus();
+    renderWallet(win > 0 ? 'win' : null);
+    if (state.sound && win > 0) sound.play(win / spin.bet >= 25 ? 'bigWin' : 'win');
+
+    if (spin.freeSpins.added) {
+      toast(`+${spin.freeSpins.added} giros por los ${spin.scatter.count} ${GAME.scatter.label}`);
+      if (state.sound) sound.play('bonus');
+    }
+
+    if (state.bonus) await wait(T.bonus);
+  }
+
+  // Si se tocó la guarda, el bono se corta acá para no quedar trabado.
+  const spinsPlayed = state.bonusSpin;
+  state.bonus = null;
+  state.inBonus = false;
+  state.spinning = false;
+  state.bonusSpin = 0;
+  saveBonus();
+  refreshMultiplierBadge();
+  setResult(
+    won > 0 ? `Bono: ${money(won)}` : 'Bono terminado',
+    `${spinsPlayed} giros gratis · de vuelta al juego base`,
+    won > 0 ? 'win' : 'neutral',
+  );
+  render();
+  toast('Bono terminado');
+}
+
+async function spin() {
+  if (state.spinning) return;
+  if (state.bonus) {
+    await runBonus(state.bonus);
+    return;
   }
 
   ensureBet();
-  render();
-  animateWalletUI(
-    els.balance,
-    run.result.net > 0 ? 'win' : run.result.net < 0 ? 'lose' : null,
-  );
-
-  if (win > 0 && state.sound) {
-    sound.play(run.result.multiplier >= 25 ? 'blackjack' : 'win');
-  }
-}
-
-function animateReels(result) {
-  const now = performance.now();
-  const run = { result, reels: [] };
-
-  els.strips.forEach((element, index) => {
-    const reelElement = element.parentElement;
-    const cell = reelElement.clientHeight / 3 || 1;
-    const start = state.grid ? state.grid[index] : gridForStops(state.stops)[index];
-    const filler = Array.from(
-      { length: FILLER_CELLS },
-      () => SLOT_STRIP[Math.floor(Math.random() * SLOT_STRIP.length)],
-    );
-    const sequence = [...start, ...filler, ...result.grid[index]];
-
-    fillStrip(element, sequence);
-    run.reels.push({
-      element,
-      reelElement,
-      from: 0,
-      to: -(sequence.length - 3) * cell,
-      startedAt: now,
-      duration: SPIN_DURATIONS[index] || SPIN_DURATIONS[SPIN_DURATIONS.length - 1],
-      currentY: 0,
-      done: false,
-      final: result.grid[index],
-    });
-  });
-
-  state.run = run;
-  state.frame = requestAnimationFrame(stepReels);
-}
-
-function spin() {
-  if (state.spinning) return;
-  if (state.balance < SLOT_MIN_BET) {
+  if (state.bet < SLOT_MIN_BET || state.bet > state.balance) {
     render();
-    return;
-  }
-  if (state.bet < SLOT_MIN_BET) ensureBet();
-  if (state.bet > state.balance) state.bet = normalizeSlotBet(state.bet, state.balance);
-  if (state.bet < SLOT_MIN_BET) {
-    render();
+    toast('No te alcanza para esa apuesta');
     return;
   }
 
-  const result = spinSlots({ bet: state.bet });
+  const bet = state.bet;
+  const result = resolveSpin(GAME, { bet, capture: true });
 
-  // El saldo se aplica al instante: si recargás en medio del giro, no se pierde.
+  // El saldo se aplica al instante: si recargás en medio del giro, ya está.
   state.balance += result.net;
-  state.spinWin = result.win;
+  // Lo que se ve todavía no incluye el premio: se muestra al cerrar la cascada.
+  state.displayBalance = state.balance - result.totalWin;
   state.spinning = true;
+  state.turbo = false;
   saveProgress();
   savePrefs();
-
-  setResult('Girando…', `${money(result.bet)} en juego`, 'spin');
   render();
-  animateReels(result);
-}
 
-function accelerateSpin() {
-  const run = state.run;
-  if (!run) return;
+  setResult('Girando…', `${money(bet)} en juego`, 'spin');
+  await animateSpin(result);
+  finishSpin(result);
 
-  const now = performance.now();
-  let changed = false;
-  for (const reel of run.reels) {
-    if (reel.done) continue;
-    const remaining = Math.max(0, reel.duration - (now - reel.startedAt));
-    if (remaining <= SPIN_MIN_MS) continue;
-    reel.from = reel.currentY;
-    reel.startedAt = now;
-    reel.duration = Math.max(SPIN_MIN_MS, remaining * SPIN_FAST);
-    changed = true;
+  state.spinning = false;
+
+  if (result.nextBonus) {
+    await runBonus(result.nextBonus);
   }
-  if (changed && state.sound) sound.play('tick');
+
+  if (state.auto > 0) {
+    state.auto -= 1;
+    if (state.auto > 0) scheduleAuto();
+    else stopAuto(false);
+  }
+  render();
 }
 
-function repeatSpin() {
-  if (state.spinning) return;
-  if (state.balance < SLOT_MIN_BET) {
-    render();
+/* ---------- Auto ---------- */
+
+function scheduleAuto() {
+  clearTimeout(state.autoTimer);
+  state.autoTimer = setTimeout(() => {
+    state.autoTimer = 0;
+    if (state.auto > 0) spin();
+  }, Math.max(180, T.between * SPEEDS[state.speed].factor));
+}
+
+function startAuto(count) {
+  if (state.spinning || state.bonus) {
+    toast('Esperá a que termine el giro');
     return;
   }
-  if (state.bet < SLOT_MIN_BET) {
-    state.bet = normalizeSlotBet(SLOT_DEFAULT_BET, state.balance);
-    if (state.bet < SLOT_MIN_BET) return;
-    savePrefs();
-    render();
-  }
+  state.auto = count;
+  render();
   spin();
 }
 
-/* ---------- Fichas beta ---------- */
+function stopAuto(notify = true) {
+  clearTimeout(state.autoTimer);
+  state.autoTimer = 0;
+  if (state.auto > 0 && notify) toast('Auto detenido');
+  state.auto = 0;
+  render();
+}
+
+/* ---------- Countdown ---------- */
 
 function renderCountdown() {
   if (els.noFundsPanel.hidden) return;
@@ -507,7 +727,7 @@ function renderCountdown() {
 
 const toast = createToast(els.toast);
 
-/* ---------- Instalación (PWA / iOS) ---------- */
+/* ---------- Instalación ---------- */
 
 const installUI = createInstallUI({
   installBtn: els.installBtn,
@@ -581,7 +801,7 @@ function renderBetSheet() {
 }
 
 function buildBetSheetChips() {
-  const options = slotBetOptions(state.balance);
+  const options = betOptions(state.balance);
   els.betSheetChips.replaceChildren(
     ...options.map((value) => makeChip(value, { verb: 'Usar' })),
   );
@@ -592,10 +812,7 @@ function openBetSheet() {
   if (state.spinning) return;
   lastFocusedBet = document.activeElement;
 
-  const initial =
-    state.bet >= SLOT_MIN_BET
-      ? state.bet
-      : normalizeSlotBet(SLOT_DEFAULT_BET, state.balance);
+  const initial = state.bet >= SLOT_MIN_BET ? state.bet : SLOT_DEFAULT_BET;
   els.betInput.value = initial >= SLOT_MIN_BET ? String(initial) : '';
 
   buildBetSheetChips();
@@ -629,7 +846,7 @@ function applyBetDraft() {
   if (state.sound) sound.play('unlockTier');
 }
 
-/* ---------- Fichas beta: hoja ---------- */
+/* ---------- Agregar fichas ---------- */
 
 const addFundsUI = createAddFundsSheet({
   addFundsBtn: els.addFundsBtn,
@@ -653,6 +870,7 @@ const addFundsUI = createAddFundsSheet({
   },
   onConfirm: (amount) => {
     state.balance += amount;
+    state.displayBalance += amount;
     ensureBet();
     saveProgress();
     savePrefs();
@@ -669,14 +887,15 @@ const closeAddSheet = addFundsUI.close;
 
 function switchGame() {
   if (state.spinning) {
-    toast('Esperá a que frenen los rodillos');
+    toast(state.bonus ? 'Terminá el bono para cambiar' : 'Esperá a que termine el giro');
     return;
   }
-  saveStoredPrefs({ game: '' });
+  stopAuto(false);
+  savePrefs({ game: '' });
   location.href = 'index.html';
 }
 
-/* ---------- Gestos de la máquina ---------- */
+/* ---------- Gestos ---------- */
 
 let activeGesture = null;
 let lastTap = { t: 0, x: 0, y: 0 };
@@ -757,8 +976,12 @@ function onCabinetPointerUp(event) {
 
   if (gesture.doubleTap) {
     lastTap = { t: 0, x: 0, y: 0 };
-    if (state.spinning) accelerateSpin();
-    else repeatSpin();
+    if (state.spinning) {
+      state.turbo = true;
+      if (state.sound) sound.play('tick');
+    } else {
+      spin();
+    }
     return;
   }
 
@@ -782,44 +1005,101 @@ els.cabinet.addEventListener('contextmenu', (event) => event.preventDefault());
 
 /* ---------- Tabla de pagos ---------- */
 
-function buildPayTable() {
-  const entries = Object.entries(SLOT_SYMBOLS).sort((a, b) => b[1].pay - a[1].pay);
-  els.payTable.replaceChildren(
-    ...entries.map(([id, info]) => {
-      const row = document.createElement('div');
-      row.className = 'slot-pay';
-
-      const symbol = document.createElement('span');
-      symbol.className = `slot-pay__sym slot-sym--${id}`;
-      symbol.setAttribute('aria-hidden', 'true');
-      symbol.textContent = info.glyph;
-
-      const name = document.createElement('span');
-      name.className = 'slot-pay__name';
-      name.textContent = info.label.charAt(0).toUpperCase() + info.label.slice(1);
-
-      const multiplier = document.createElement('strong');
-      multiplier.className = 'slot-pay__mult';
-      multiplier.textContent = `×${info.pay}`;
-
-      row.append(symbol, name, multiplier);
-      return row;
-    }),
-  );
-
-  const rtp = (slotRtp() * 100).toFixed(2).replace('.', ',');
-  const every = (1 / slotHitChance()).toFixed(1).replace('.', ',');
-  els.rtpInfo.textContent =
-    `A largo plazo devuelve el ${rtp}% de lo apostado. ` +
-    `Un premio cada ${every} giros.`;
+function payLabel(value) {
+  const rounded = Math.round(value * 100) / 100;
+  return String(rounded).replace('.', ',');
 }
 
-function buildLineLegend() {
-  els.lineLegend.replaceChildren(
-    ...SLOT_LINES.map((line) => {
+function buildPayTable() {
+  const rows = [];
+
+  for (const id of GAME.symbols) {
+    const meta = GAME.symbolMeta[id];
+    const table = GAME.pays[id];
+    const row = document.createElement('div');
+    row.className = 'slot-pay';
+
+    const symbol = document.createElement('span');
+    symbol.className = `slot-pay__sym slot-sym--${id}`;
+    symbol.setAttribute('aria-hidden', 'true');
+    symbol.innerHTML = artFor(id);
+
+    const name = document.createElement('span');
+    name.className = 'slot-pay__name';
+    name.textContent = meta.label;
+
+    const tiers = document.createElement('span');
+    tiers.className = 'slot-pay__tiers';
+    for (const [count, pay] of Object.entries(table)) {
       const item = document.createElement('span');
-      item.textContent = line.label;
-      return item;
+      item.className = 'slot-pay__tier';
+      item.innerHTML = `<b>${count}+</b> ×${payLabel(pay)}`;
+      tiers.append(item);
+    }
+
+    row.append(symbol, name, tiers);
+    rows.push(row);
+  }
+
+  const scatterRow = document.createElement('div');
+  scatterRow.className = 'slot-pay slot-pay--special';
+  const scatterSym = document.createElement('span');
+  scatterSym.className = `slot-pay__sym slot-sym--${GAME.scatter.id}`;
+  scatterSym.setAttribute('aria-hidden', 'true');
+  scatterSym.innerHTML = artFor(GAME.scatter.id);
+  const scatterName = document.createElement('span');
+  scatterName.className = 'slot-pay__name';
+  scatterName.textContent = GAME.scatter.label;
+  const scatterTiers = document.createElement('span');
+  scatterTiers.className = 'slot-pay__tiers';
+  const scatterEntries = Object.entries(GAME.scatter.pays);
+  for (const [index, [count, pay]] of scatterEntries.entries()) {
+    const item = document.createElement('span');
+    item.className = 'slot-pay__tier';
+    const plus = index === scatterEntries.length - 1 ? '+' : '';
+    item.innerHTML = `<b>${count}${plus}</b> ×${payLabel(pay)}`;
+    scatterTiers.append(item);
+  }
+  scatterRow.append(scatterSym, scatterName, scatterTiers);
+
+  const multRow = document.createElement('div');
+  multRow.className = 'slot-pay slot-pay--special';
+  const multSym = document.createElement('span');
+  multSym.className = `slot-pay__sym slot-sym--${GAME.multipliers.id}`;
+  multSym.setAttribute('aria-hidden', 'true');
+  multSym.innerHTML = artFor(GAME.multipliers.id);
+  const multName = document.createElement('span');
+  multName.className = 'slot-pay__name';
+  multName.textContent = GAME.multipliers.label;
+  const multTiers = document.createElement('span');
+  multTiers.className = 'slot-pay__tiers';
+  const multItem = document.createElement('span');
+  multItem.className = 'slot-pay__tier';
+  const values = GAME.multipliers.values;
+  multItem.textContent = `×${values[0]} a ×${values[values.length - 1]}`;
+  multTiers.append(multItem);
+  multRow.append(multSym, multName, multTiers);
+
+  els.payTable.replaceChildren(...rows, scatterRow, multRow);
+
+  const percent = (GAME.rtpTarget * 100).toFixed(0);
+  els.rtpInfo.textContent =
+    `A largo plazo devuelve alrededor del ${percent}% de lo apostado. ` +
+    `${COPY.bonusLabel} con ${GAME.scatter.trigger} ${GAME.scatter.label}.`;
+}
+
+function buildCopy() {
+  document.title = `${GAME.label} · Mesa`;
+  els.gameMark.innerHTML = artFor('mark');
+  els.gameName.textContent = GAME.label;
+  els.gameSub.textContent = COPY.subtitle;
+  els.brandName.textContent = GAME.label;
+  if (els.gameFoot) els.gameFoot.textContent = GAME.label;
+  els.rulesList.replaceChildren(
+    ...COPY.rules.map((text) => {
+      const li = document.createElement('li');
+      li.textContent = text;
+      return li;
     }),
   );
 }
@@ -858,14 +1138,27 @@ els.switchGameBtn.addEventListener('click', switchGame);
 els.betChips.addEventListener('click', (event) => {
   const chip = event.target.closest('.chip');
   if (!chip || chip.disabled) return;
-  state.bet = normalizeSlotBet(Number(chip.dataset.value), state.balance);
+  state.bet = normalizeBet(Number(chip.dataset.value), state.balance);
   savePrefs();
   if (state.sound) sound.play('chip', { index: chipIndex(Number(chip.dataset.value)) });
   render();
 });
 
-els.betOtherBtn.addEventListener('click', openBetSheet);
-els.spinBtn.addEventListener('click', spin);
+els.betAmountBtn.addEventListener('click', openBetSheet);
+els.spinBtn.addEventListener('click', () => spin());
+
+els.speedBtn.addEventListener('click', () => {
+  state.speed = (state.speed + 1) % SPEEDS.length;
+  savePrefs();
+  renderBet();
+  if (state.sound) sound.play('tick');
+  toast(`Velocidad ${SPEEDS[state.speed].label}`);
+});
+
+for (const button of els.autoButtons) {
+  button.addEventListener('click', () => startAuto(Number(button.dataset.auto)));
+}
+els.autoStop.addEventListener('click', () => stopAuto());
 
 els.betClose.addEventListener('click', closeBetSheet);
 els.betSheet.addEventListener('click', (event) => {
@@ -908,11 +1201,11 @@ els.resetCancel.addEventListener('click', () => {
 });
 els.resetGo.addEventListener('click', () => {
   resetting = true;
-  cancelAnimationFrame(state.frame);
-  state.frame = 0;
-  state.run = null;
+  stopAuto(false);
   removeStored(PROGRESS_KEY);
-  saveStoredPrefs({ slotsBet: SLOT_DEFAULT_BET });
+  removeStored(`${SLOT_BONUS_PREFIX}tactica`);
+  removeStored(`${SLOT_BONUS_PREFIX}pulso`);
+  savePrefs({ slotsBet: SLOT_DEFAULT_BET, tacticaBet: SLOT_DEFAULT_BET, pulsoBet: SLOT_DEFAULT_BET });
   location.reload();
 });
 
@@ -931,9 +1224,10 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('pagehide', () => {
   if (resetting) return;
-  // Solo el saldo: escribir las prefs acá volvería a guardar `game: 'slots'`
-  // después de "Cambiar de juego" y el selector rebotaría a la tragamonedas.
+  // Solo el saldo y el bono: escribir las prefs acá volvería a guardar
+  // `game` después de "Cambiar de juego" y el selector rebotaría.
   saveProgress();
+  if (bonusTouched) saveBonus();
 });
 
 window.addEventListener('resize', placeToast);
@@ -970,7 +1264,7 @@ function scheduleGestureHint() {
     toast('Doble toque: otra tirada · acelera el giro');
     state.seenSlotHint = true;
     savePrefs();
-  }, 1500);
+  }, 1600);
 }
 
 /* ---------- Arranque ---------- */
@@ -978,19 +1272,31 @@ function scheduleGestureHint() {
 applyTheme();
 applySound();
 applyGestures();
-buildReels();
+buildCopy();
+buildGrid();
+renderGrid(idleGrid());
 buildPayTable();
-buildLineLegend();
-buildAddChips(els.addChips);
+buildAddFundsChips();
 unlockSoundOnGesture();
 if (els.appVersion) setVersion(els.appVersion, APP_VERSION);
+
+function buildAddFundsChips() {
+  els.addChips.replaceChildren(...CHIP_TIERS.map((tier) => makeChip(tier)));
+}
 
 ensureBet();
 savePrefs();
 maybeTopUp();
 render();
-renderInstall();
-scheduleGestureHint();
+
+if (state.bonus) {
+  // Bono pendiente: se retoma solo, sin cobrar nada.
+  setTimeout(() => {
+    if (state.bonus) runBonus(state.bonus);
+  }, 700);
+} else {
+  scheduleGestureHint();
+}
 
 if ('serviceWorker' in navigator) {
   const secure =

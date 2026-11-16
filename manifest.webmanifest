@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Mesa",
   "short_name": "Mesa",
-  "description": "Blackjack y póker para jugar desde el celular.",
+  "description": "Blackjack, póker y dos tragamonedas para jugar desde el celular.",
   "lang": "es-AR",
   "dir": "ltr",
   "start_url": "./",
@@ -43,6 +43,16 @@
       "name": "Póker",
       "short_name": "Póker",
       "url": "./poker.html"
+    },
+    {
+      "name": "Táctica",
+      "short_name": "Táctica",
+      "url": "./tactica.html"
+    },
+    {
+      "name": "Pulso",
+      "short_name": "Pulso",
+      "url": "./pulso.html"
     }
   ]
 }

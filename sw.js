@@ -1,9 +1,11 @@
-const CACHE = 'blackjack-v2.12';
+const CACHE = 'blackjack-v3.0';
 
 const ASSETS = [
   './',
   './index.html',
   './poker.html',
+  './tactica.html',
+  './pulso.html',
   './slots.html',
   './manifest.webmanifest',
   './css/tokens.css',
@@ -12,6 +14,7 @@ const ASSETS = [
   './css/chooser.css',
   './css/poker.css',
   './css/slots.css',
+  './css/slots-themes.css',
   './js/sound.js',
   './js/core/storage.js',
   './js/core/cards.js',
@@ -25,8 +28,16 @@ const ASSETS = [
   './js/games/blackjack/controller.js',
   './js/games/poker/engine.js',
   './js/games/poker/controller.js',
-  './js/games/slots/engine.js',
   './js/games/slots/controller.js',
+  './js/games/slots/core/config.js',
+  './js/games/slots/core/grid.js',
+  './js/games/slots/core/evaluate.js',
+  './js/games/slots/core/tumble.js',
+  './js/games/slots/core/spin.js',
+  './js/games/slots/games/tactica.js',
+  './js/games/slots/games/pulso.js',
+  './js/games/slots/games/tactica.art.js',
+  './js/games/slots/games/pulso.art.js',
   './icons/favicon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -61,9 +72,11 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     const fallback = url.pathname.endsWith('poker.html')
       ? './poker.html'
-      : url.pathname.endsWith('slots.html')
-        ? './slots.html'
-        : './index.html';
+      : url.pathname.endsWith('tactica.html')
+        ? './tactica.html'
+        : url.pathname.endsWith('pulso.html')
+          ? './pulso.html'
+          : './index.html';
     event.respondWith(
       fetch(request)
         .then((response) => {

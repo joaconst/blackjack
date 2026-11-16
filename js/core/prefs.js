@@ -2,16 +2,18 @@
 
 import { PREFS_KEY, readStored, writeStored } from './storage.js';
 
-const GAMES = ['blackjack', 'poker', 'slots'];
+const GAMES = ['blackjack', 'poker', 'tactica', 'pulso'];
 
 /** Normaliza solo las claves comunes; las de cada juego pasan tal cual. */
 export function normalizePrefs(source = {}) {
+  // La tragamonedas 3×3 se reemplazó por Táctica: migrar sin perder el saldo.
+  const game = source.game === 'slots' ? 'tactica' : source.game;
   return {
     theme: source.theme === 'light' || source.theme === 'dark' ? source.theme : 'auto',
     sound: typeof source.sound === 'boolean' ? source.sound : true,
     gestures: typeof source.gestures === 'boolean' ? source.gestures : true,
     seenGestureHint: source.seenGestureHint === true,
-    game: GAMES.includes(source.game) ? source.game : '',
+    game: GAMES.includes(game) ? game : '',
   };
 }
 

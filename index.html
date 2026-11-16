@@ -27,8 +27,16 @@
           location.replace('poker.html');
           return;
         }
+        if (prefs && prefs.game === 'tactica') {
+          location.replace('tactica.html');
+          return;
+        }
+        if (prefs && prefs.game === 'pulso') {
+          location.replace('pulso.html');
+          return;
+        }
         if (prefs && prefs.game === 'slots') {
-          location.replace('slots.html');
+          location.replace('tactica.html');
           return;
         }
         var pref = prefs && prefs.theme;
@@ -167,7 +175,7 @@
     <div class="picker__panel" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
       <p class="picker__mark" aria-hidden="true">&#9824;</p>
       <h1 class="picker__title" id="pickerTitle">Elegí tu juego</h1>
-      <p class="picker__text">Los tres comparten el mismo saldo. Podés cambiarlo cuando quieras desde Ajustes.</p>
+      <p class="picker__text">Los cuatro comparten el mismo saldo. Podés cambiarlo cuando quieras desde Ajustes.</p>
 
       <div class="picker__grid">
         <button type="button" class="game-card" data-game="blackjack">
@@ -188,11 +196,20 @@
           </span>
         </button>
 
-        <button type="button" class="game-card" data-game="slots">
-          <span class="game-card__mark" aria-hidden="true">&#9733;</span>
+        <button type="button" class="game-card" data-game="tactica">
+          <span class="game-card__mark" aria-hidden="true">&#9670;</span>
           <span class="game-card__body">
-            <span class="game-card__name">Tragamonedas</span>
-            <span class="game-card__text">3 rodillos y 5 líneas fijas</span>
+            <span class="game-card__name">Táctica</span>
+            <span class="game-card__text">6×5 con cascadas y medallas</span>
+            <span class="game-card__tag" data-tag hidden>Jugando ahora</span>
+          </span>
+        </button>
+
+        <button type="button" class="game-card" data-game="pulso">
+          <span class="game-card__mark" aria-hidden="true">&#10022;</span>
+          <span class="game-card__body">
+            <span class="game-card__name">Pulso</span>
+            <span class="game-card__text">6×5 con cascadas y cargas</span>
             <span class="game-card__tag" data-tag hidden>Jugando ahora</span>
           </span>
         </button>

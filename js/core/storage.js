@@ -4,6 +4,7 @@ export const PREFS_KEY = 'blackjack.prefs.v1';
 export const PROGRESS_KEY = 'blackjack.progress.v1';
 export const LEGACY_KEY = 'blackjack.state.v1';
 export const TABLE_KEY = 'poker.table.v1';
+export const SLOT_BONUS_PREFIX = 'slots.bonus.v1.';
 
 export function readStored(key) {
   try {
